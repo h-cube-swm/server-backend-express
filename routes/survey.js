@@ -14,13 +14,20 @@ router.put("/", async (req, res, next) => {
 });
 
 router.put("/end", async (req, res, next) => {
-  await Survey.updateOne(req.survey, {
-    status: "published",
-  }).exec();
+  if (req.survey.status === "published") {
+    res.status(400).send(gc("Survey Already Published"));
+    return;
+  }
+  try {
+    await Survey.updateOne(req.survey, {
+      status: "published",
+    }).exec();
 
-  const result = await Survey.findOne(req.survey);
-
-  res.status(200).send(gr(result, "Update Success"));
+    const result = await Survey.findOne(req.survey); // 해당 부분 update & return을 findOneAndUpdate
+    res.status(200).send(gr(result, "Update Success"));
+  } catch (err) {
+    console.log("Failed to put", err);
+  }
 });
 
 module.exports = router;
