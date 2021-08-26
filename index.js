@@ -80,16 +80,25 @@ app.get("*", (req, res) => {
 // CONNECT TO MONGODB SERVER
 const { DB_USERNAME, DB_PASSWORD } = process.env;
 
-mongoose
-  .connect(
-    `mongodb://${DB_USERNAME}:${encodeURIComponent(DB_PASSWORD)}@mongo:27017/`,
-    {
-      useUnifiedTopology: true,
-      useNewUrlParser: true,
-    }
-  )
-  .then(() => console.log("Successfully connected to mongodb"))
-  .catch((e) => console.error(e));
+const connectDB = async () => {
+  try {
+    await mongoose.connect(
+      `mongodb://${DB_USERNAME}:${encodeURIComponent(
+        DB_PASSWORD
+      )}@mongo:27017/`,
+      {
+        useUnifiedTopology: true,
+        useNewUrlParser: true,
+      }
+    );
+
+    console.log("Successfully connected to mongodb");
+  } catch (err) {
+    console.log("Failed to connect to MongoDB", err);
+  }
+};
+
+connectDB();
 
 app.listen(PORT, () => {
   console.log(`Server opened at port ${PORT}.`);
