@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const getResponse = require("./utils");
 const mongoose = require("mongoose");
+const { v4: uuidv4 } = require("uuid");
 
 const PORT = 3000;
 const app = express();
@@ -29,7 +30,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/link", (req, res) => {
-  res.status(200).send(getResponse(Math.random(), "Create Link"));
+  res.status(200).send(getResponse(uuidv4(), "Create Link"));
 });
 
 // Routers
