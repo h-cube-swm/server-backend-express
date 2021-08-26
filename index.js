@@ -89,6 +89,7 @@ const connectDB = async () => {
       {
         useUnifiedTopology: true,
         useNewUrlParser: true,
+        useFindAndModify: false,
       }
     );
 
