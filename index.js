@@ -15,6 +15,11 @@ const app = express();
 function checkHasBody(req, res, next) {
   const method = req.method.toLowerCase();
 
+  if (req.url === "/end/") {
+    next();
+    return;
+  }
+
   if (method !== "post" && method !== "put") {
     next();
     return;

@@ -13,4 +13,14 @@ router.put("/", async (req, res, next) => {
   res.status(200).send(gc("Update Success"));
 });
 
+router.put("/end", async (req, res, next) => {
+  await Survey.updateOne(req.survey, {
+    status: "published",
+  }).exec();
+
+  const result = await Survey.findOne(req.survey);
+
+  res.status(200).send(gr(result, "Update Success"));
+});
+
 module.exports = router;
