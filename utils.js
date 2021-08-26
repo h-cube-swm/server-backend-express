@@ -3,9 +3,11 @@
  * @param {Number} status
  * @param {Object} data
  */
-const getResponse = (data, comment = "Success") => ({
-  data,
+const getResponse = (result, comment = "Success") => ({
+  result,
   comment,
 });
 
-module.exports = getResponse;
+const getComment = (comment) => getResponse(null, comment);
+
+module.exports = { getResponse, getComment };

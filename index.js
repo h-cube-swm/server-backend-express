@@ -1,22 +1,54 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const getResponse = require("./utils");
+const { getResponse: gr, getComment: gc } = require("./utils");
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require("uuid");
+const {
+  v4: uuidv4,
+  version: uuidVersion,
+  validate: uuidValidate,
+} = require("uuid");
+const Survey = require("./models/survey");
 
 const PORT = 3000;
 const app = express();
 
 function checkHasBody(req, res, next) {
   const method = req.method.toLowerCase();
-  if (method === "post" || method === "put") {
-    if (Object.keys(req.body).length > 0) {
-      next();
-    } else {
-      res.send(getResponse(null, "Error"));
-    }
-  } else {
+
+  if (method !== "post" && method !== "put") {
     next();
+    return;
+  }
+
+  if (Object.keys(req.body).length > 0) {
+    next();
+    return;
+  }
+
+  res.send(gc("Illegal Arguments(Json Body is Required)"));
+}
+
+async function checkUUID(req, res, next) {
+  const uuid = req.params.uuid;
+  const isUUID = uuidValidate(uuid) && uuidVersion(uuid) === 4;
+  if (!isUUID) {
+    res
+      .status(400)
+      .send(gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"));
+  }
+
+  try {
+    const survey = await Survey.findOne({ link: uuid });
+    if (!survey) {
+      res.status(400).send(gc("Invalid Survey ID"));
+      return;
+    }
+
+    req.survey = survey;
+    next();
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(gc("Error"));
   }
 }
 
@@ -26,21 +58,23 @@ app.use(bodyParser.json());
 
 // Endpoint
 app.get("/", (req, res) => {
-  res.status(200).send(getResponse(null, "Server is running."));
+  res.status(200).send(gc("Server is running."));
 });
 
 app.get("/link", (req, res) => {
-  res.status(200).send(getResponse(uuidv4(), "Create Link"));
+  Survey.create({ link: uuidv4() }).then((newSurvey) => {
+    res.status(200).send(gr(newSurvey, "Create Success"));
+  });
 });
 
 // Routers
-app.use("/user", checkHasBody, require("./routes/user"));
-app.use("/survey", checkHasBody, require("./routes/survey"));
-app.use("/response", checkHasBody, require("./routes/response"));
+app.use("/users", checkHasBody, require("./routes/user"));
+app.use("/surveys/:uuid", checkUUID, checkHasBody, require("./routes/survey"));
+app.use("/responses", checkHasBody, require("./routes/response"));
 
 // 404
 app.get("*", (req, res) => {
-  res.status(404).send(getResponse(null, "Such endpoint does not exists."));
+  res.status(404).send(gc("Such endpoint does not exists."));
 });
 
 // CONNECT TO MONGODB SERVER
