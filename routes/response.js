@@ -18,6 +18,7 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res, next) => {
+  // 추후 userId도 추가해야함
   try {
     req.body.surveyId = req.survey._id; // survey id 필드 추가
     await Response.create(req.body);

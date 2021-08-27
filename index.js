@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const bodyParser = require("body-parser");
 const { getResponse: gr, getComment: gc } = require("./utils");
 const mongoose = require("mongoose");
@@ -7,11 +8,16 @@ const {
   version: uuidVersion,
   validate: uuidValidate,
 } = require("uuid");
+const jose = require("node-jose");
+const axios = require("axios");
 const Survey = require("./models/survey");
 
 const PORT = 3000;
 const app = express();
 
+app.use(cors());
+
+// MiddleWare
 function checkHasBody(req, res, next) {
   const method = req.method.toLowerCase();
 
@@ -57,6 +63,23 @@ async function checkUUID(req, res, next) {
   }
 }
 
+async function verifyJWT(req, res, next) {
+  try {
+    // const clientToken = req.headers.authorization.split("Bearer ")[1];
+    // const response = await axios.get("https://auth.the-form.io/keys");
+    // const publicKey = response.data[0];
+    // console.log(clientToken, JSON.stringify(publicKey));
+    // const verified = jwt.verify(clientToken, JSON.stringify(publicKey), {
+    //   algorithms: "RS256",
+    // });
+    // console.log(verified);
+    next();
+  } catch (err) {
+    console.log("Fail to Verify JWT", err);
+    res.status(500).send(gc("Server Error"));
+  }
+}
+
 // Body-parser
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -67,6 +90,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/link", async (req, res) => {
+  // 추후 userId도 추가해야함
   try {
     const result = await Survey.create({ link: uuidv4() });
     res.status(201).send(gr(result, "Create Success"));
@@ -78,11 +102,18 @@ app.get("/link", async (req, res) => {
 
 // Routers
 app.use("/users", checkHasBody, require("./routes/user"));
-app.use("/surveys/:uuid", checkUUID, checkHasBody, require("./routes/survey"));
+app.use(
+  "/surveys/:uuid",
+  checkUUID,
+  checkHasBody,
+  verifyJWT,
+  require("./routes/survey")
+);
 app.use(
   "/surveys/:uuid/responses",
   checkUUID,
   checkHasBody,
+  verifyJWT,
   require("./routes/response")
 );
 
