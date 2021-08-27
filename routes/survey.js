@@ -9,8 +9,13 @@ router.get("/", (req, res) => {
 });
 
 router.put("/", async (req, res, next) => {
-  await Survey.updateOne(req.survey, req.body).exec();
-  res.status(200).send(gc("Survey Update Success"));
+  try {
+    await Survey.updateOne(req.survey, req.body).exec();
+    res.status(200).send(gc("Survey Update Success"));
+  } catch (err) {
+    console.log("Faile to Update Survey", err);
+    res.status(500).send(gc("Server Error"));
+  }
 });
 
 router.put("/end", async (req, res, next) => {
@@ -27,6 +32,7 @@ router.put("/end", async (req, res, next) => {
     res.status(200).send(gr(result, "Survey End Update Success"));
   } catch (err) {
     console.log("Failed to put", err);
+    res.status(500).send(gc("Server Error"));
   }
 });
 
@@ -43,8 +49,13 @@ router.put(
       res.status(400).send(gc("not a correct email (example@example.com)"));
       return;
     }
-    await Survey.updateOne(req.survey, req.body).exec();
-    res.status(200).send(gc("Email Update Success"));
+    try {
+      await Survey.updateOne(req.survey, req.body).exec();
+      res.status(200).send(gc("Email Update Success"));
+    } catch (err) {
+      console.log("Failed to Update Email", err);
+      res.status(500).send(gc("Server Error"));
+    }
   }
 );
 
