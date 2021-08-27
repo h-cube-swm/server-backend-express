@@ -14,10 +14,12 @@ const Survey = require("./models/survey");
 
 const PORT = 3000;
 const app = express();
+let verifier = null;
 
-app.use(cors());
-
-// MiddleWare
+/**
+ * Check if request has a body.
+ * If the body does not exists or the body is an empty object, response an error.
+ */
 function checkHasBody(req, res, next) {
   const method = req.method.toLowerCase();
 
@@ -39,6 +41,13 @@ function checkHasBody(req, res, next) {
   res.send(gc("Illegal Arguments(Json Body is Required)"));
 }
 
+/**
+ * 1. When there are survey UUID parameter at path,
+ * 2. check if the UUID is valid
+ * 3. and check if the UUID is in database.
+ * 
+ * Else, response an error.
+ */
 async function checkUUID(req, res, next) {
   const uuid = req.params.uuid;
   const isUUID = uuidValidate(uuid) && uuidVersion(uuid) === 4;
@@ -63,26 +72,26 @@ async function checkUUID(req, res, next) {
   }
 }
 
-async function verifyJWT(req, res, next) {
+/**
+ * When there are authroization header and it is valid,
+ * assign payload of JWT to user attribute of req object.
+ * It does not throw error even if jwt is invalid or there are no authroization header.
+ */
+async function checkJWT(req, res, next) {
   try {
-    // const clientToken = req.headers.authorization.split("Bearer ")[1];
-    // const response = await axios.get("https://auth.the-form.io/keys");
-    // const publicKey = response.data[0];
-    // console.log(clientToken, JSON.stringify(publicKey));
-    // const verified = jwt.verify(clientToken, JSON.stringify(publicKey), {
-    //   algorithms: "RS256",
-    // });
-    // console.log(verified);
-    next();
-  } catch (err) {
-    console.log("Fail to Verify JWT", err);
-    res.status(500).send(gc("Server Error"));
-  }
+    const token = req.headers.authorization.split("Bearer ")[1];
+    const verified = await verifier.verify(token);
+    const payload = JSON.parse(verified.payload.toString());
+    req.user = payload;
+  } catch (err) { }
+  next();
 }
 
-// Body-parser
+// Global middlewares
+app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(checkJWT);
 
 // Endpoint
 app.get("/", (req, res) => {
@@ -93,27 +102,20 @@ app.get("/link", async (req, res) => {
   // 추후 userId도 추가해야함
   try {
     const result = await Survey.create({ link: uuidv4() });
-    res.status(201).send(gr(result, "Create Success"));
+    res.status(201).send(gr(result, "Survey Create Success"));
   } catch (err) {
-    console.log("Faile to Create Link", err);
+    console.log("Faile to Create Link");
     res.status(500).send(gc("Server Error"));
   }
 });
 
 // Routers
 app.use("/users", checkHasBody, require("./routes/user"));
-app.use(
-  "/surveys/:uuid",
-  checkUUID,
-  checkHasBody,
-  verifyJWT,
-  require("./routes/survey")
-);
+app.use("/surveys/:uuid", checkUUID, require("./routes/survey"));
 app.use(
   "/surveys/:uuid/responses",
   checkUUID,
   checkHasBody,
-  verifyJWT,
   require("./routes/response")
 );
 
@@ -122,30 +124,36 @@ app.all("*", (req, res) => {
   res.status(404).send(gc("Such endpoint does not exists."));
 });
 
-// CONNECT TO MONGODB SERVER
-const { DB_USERNAME, DB_PASSWORD } = process.env;
+async function main() {
+  // Connect to database
+  const { DB_USERNAME, DB_PASSWORD } = process.env;
+  const encodedPassword = encodeURIComponent(DB_PASSWORD);
+  await mongoose.connect(
+    `mongodb://${DB_USERNAME}:${encodedPassword}@mongo:27017/`,
+    {
+      useUnifiedTopology: true,
+      useNewUrlParser: true,
+      useFindAndModify: false,
+    }
+  );
+  console.log("Successfully connected to mongodb");
 
-const connectDB = async () => {
-  try {
-    await mongoose.connect(
-      `mongodb://${DB_USERNAME}:${encodeURIComponent(
-        DB_PASSWORD
-      )}@mongo:27017/`,
-      {
-        useUnifiedTopology: true,
-        useNewUrlParser: true,
-        useFindAndModify: false,
-      }
-    );
+  // Get RS254 JWT public key
+  const response = await axios.get("https://auth.the-form.io/keys");
+  const publicKey = response.data;
+  const keyStore = await jose.JWK.asKeyStore(publicKey);
+  verifier = jose.JWS.createVerify(keyStore);
+  console.log("Successfully got JWT public keys");
 
-    console.log("Successfully connected to mongodb");
-  } catch (err) {
-    console.log("Failed to connect to MongoDB", err);
-  }
-};
+  // Start server application
+  app.listen(PORT, () => {
+    console.log(`Server opened at port ${PORT}.`);
+  });
+}
 
-connectDB();
-
-app.listen(PORT, () => {
-  console.log(`Server opened at port ${PORT}.`);
-});
+try {
+  main();
+} catch (err) {
+  console.log('Could not start server');
+  console.log('Error :', err);
+}
