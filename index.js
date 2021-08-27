@@ -3,11 +3,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const { getResponse: gr, getComment: gc } = require("./utils");
 const mongoose = require("mongoose");
-const {
-  v4: uuidv4,
-  version: uuidVersion,
-  validate: uuidValidate,
-} = require("uuid");
+const { v4: uuidv4 } = require("uuid");
 const jose = require("node-jose");
 const axios = require("axios");
 const Survey = require("./models/survey");
@@ -42,42 +38,12 @@ function checkHasBody(req, res, next) {
 }
 
 /**
- * 1. When there are survey UUID parameter at path,
- * 2. check if the UUID is valid
- * 3. and check if the UUID is in database.
- * 
- * Else, response an error.
- */
-async function checkUUID(req, res, next) {
-  const uuid = req.params.uuid;
-  const isUUID = uuidValidate(uuid) && uuidVersion(uuid) === 4;
-  if (!isUUID) {
-    res
-      .status(400)
-      .send(gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"));
-  }
-
-  try {
-    const survey = await Survey.findOne({ link: uuid });
-    if (!survey) {
-      res.status(400).send(gc("Invalid Survey ID"));
-      return;
-    }
-
-    req.survey = survey;
-    next();
-  } catch (err) {
-    console.log(err);
-    res.status(500).send(gc("Server Error"));
-  }
-}
-
-/**
  * When there are authroization header and it is valid,
  * assign payload of JWT to user attribute of req object.
  * It does not throw error even if jwt is invalid or there are no authroization header.
  */
 async function checkJWT(req, res, next) {
+  req.user = {};
   try {
     const token = req.headers.authorization.split("Bearer ")[1];
     const verified = await verifier.verify(token);
@@ -99,9 +65,13 @@ app.get("/", (req, res) => {
 });
 
 app.get("/link", async (req, res) => {
-  // 추후 userId도 추가해야함
+  // GET /survey 로 하면 어떨까??
   try {
-    const result = await Survey.create({ link: uuidv4() });
+    const result = await Survey.create({
+      id: uuidv4(),
+      deployId: uuidv4(),
+      userId: req.user.id
+    });
     res.status(201).send(gr(result, "Survey Create Success"));
   } catch (err) {
     console.log("Faile to Create Link");
@@ -110,14 +80,8 @@ app.get("/link", async (req, res) => {
 });
 
 // Routers
-app.use("/users", checkHasBody, require("./routes/user"));
-app.use("/surveys/:uuid", checkUUID, require("./routes/survey"));
-app.use(
-  "/surveys/:uuid/responses",
-  checkUUID,
-  checkHasBody,
-  require("./routes/response")
-);
+app.use("/users", require("./routes/user"));
+app.use("/surveys", require("./routes/survey"));
 
 // 404
 app.all("*", (req, res) => {

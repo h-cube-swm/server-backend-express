@@ -3,14 +3,13 @@ const mongoose = require("mongoose");
 // Define Schemes
 const surveySchema = mongoose.Schema(
   {
+    id: String,
+    deployId: String,
     userId: String,
-    surveyId: String,
-    responseId: String,
     title: String,
     description: String,
     questions: Array,
     status: String,
-    meta: {},
     date: { type: Date, default: Date.now },
   },
   { strict: false }
