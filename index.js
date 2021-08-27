@@ -53,7 +53,7 @@ async function checkUUID(req, res, next) {
     next();
   } catch (err) {
     console.log(err);
-    res.status(500).send(gc("Error"));
+    res.status(500).send(gc("Server Error"));
   }
 }
 
@@ -66,19 +66,28 @@ app.get("/", (req, res) => {
   res.status(200).send(gc("Server is running."));
 });
 
-app.get("/link", (req, res) => {
-  Survey.create({ link: uuidv4() }).then((newSurvey) => {
-    res.status(200).send(gr(newSurvey, "Create Success"));
-  });
+app.get("/link", async (req, res) => {
+  try {
+    const result = await Survey.create({ link: uuidv4() });
+    res.status(201).send(gr(result, "Create Success"));
+  } catch (err) {
+    console.log("Faile to Create Link", err);
+    res.status(500).send(gc("Server Error"));
+  }
 });
 
 // Routers
 app.use("/users", checkHasBody, require("./routes/user"));
 app.use("/surveys/:uuid", checkUUID, checkHasBody, require("./routes/survey"));
-app.use("/responses", checkHasBody, require("./routes/response"));
+app.use(
+  "/surveys/:uuid/responses",
+  checkUUID,
+  checkHasBody,
+  require("./routes/response")
+);
 
 // 404
-app.get("*", (req, res) => {
+app.all("*", (req, res) => {
   res.status(404).send(gc("Such endpoint does not exists."));
 });
 
