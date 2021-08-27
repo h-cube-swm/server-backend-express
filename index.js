@@ -41,6 +41,7 @@ app.get("/", (req, res) => {
 
 app.get("/link", async (req, res) => {
   // GET /survey 로 하면 어떨까??
+  // GET /survey/:id 와 구분된다.
   try {
     const result = await Survey.create({
       id: uuidv4(),

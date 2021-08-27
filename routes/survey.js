@@ -8,8 +8,11 @@ const router = express.Router();
 
 const checkEmail = check("email", "Please include a valid email").isEmail();
 
+router.get('/', (req, res) => {
+  // 여기서 새로운 설문 생성을 하면 어떨까?
+});
+
 router.get("/:id", async (req, res) => {
-  console.log('GET /:id');
   const { id } = req.params;
 
   if (!checkUUID(id)) {
