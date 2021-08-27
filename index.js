@@ -13,31 +13,6 @@ const app = express();
 let verifier = null;
 
 /**
- * Check if request has a body.
- * If the body does not exists or the body is an empty object, response an error.
- */
-function checkHasBody(req, res, next) {
-  const method = req.method.toLowerCase();
-
-  if (req.url === "/end/") {
-    next();
-    return;
-  }
-
-  if (method !== "post" && method !== "put") {
-    next();
-    return;
-  }
-
-  if (Object.keys(req.body).length > 0) {
-    next();
-    return;
-  }
-
-  res.send(gc("Illegal Arguments(Json Body is Required)"));
-}
-
-/**
  * When there are authroization header and it is valid,
  * assign payload of JWT to user attribute of req object.
  * It does not throw error even if jwt is invalid or there are no authroization header.

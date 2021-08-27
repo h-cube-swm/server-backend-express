@@ -1,8 +1,9 @@
 const express = require("express");
+const { check, validationResult } = require("express-validator");
 const { getResponse: gr, getComment: gc, checkUUID } = require("../utils");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
-const { check, validationResult } = require("express-validator");
+
 const router = express.Router();
 
 const checkEmail = check("email", "Please include a valid email").isEmail();
