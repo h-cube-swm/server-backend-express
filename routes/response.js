@@ -10,7 +10,7 @@ router.get("/", async (req, res) => {
     result = {};
     result.survey = req.survey;
     result.answers = responses;
-    res.status(201).send(gr(result, "Get Responses Success"));
+    res.status(200).send(gr(result, "Get Responses Success"));
   } catch (err) {
     console.log(err);
     res.status(500).send(gc("Server Error"));
