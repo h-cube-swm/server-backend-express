@@ -9,7 +9,7 @@ const router = express.Router();
 const checkEmail = check("email", "Please include a valid email").isEmail();
 
 router.get('/', (req, res) => {
-  // 여기서 새로운 설문 생성을 하면 어떨까?
+  // ToDo: 여기서 새로운 설문 생성을 하면 어떨까?
 });
 
 router.get("/:id", async (req, res) => {
@@ -22,17 +22,18 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
+  // ToDo: 여기 수정할 것. 원래는 엔드포인트를 나눠야 하는데, 하나의 엔드포인트를 사용하고 있다.
   const survey = await Survey.findOne({ $or: [{ id }, { deployId: id }] });
-
-  // ToDo: 여기 수정할 것. 원래는 엔드포인트를 나눠야 하는데, 임시방편으로 일단 중요한 정보를 가린다.
-  if (survey.deployId === id) {
-    // 이렇게 된다는 것은 응답용으로 요청되었다는 의미이다.
-    survey.id = '';
-  }
 
   if (!survey) {
     res.status(404).send(gc("Cannot find survey"));
     return;
+  }
+
+  if (survey.deployId === id) {
+    // 이렇게 된다는 것은 응답용으로 요청되었다는 의미이다. 이 경우 id field가 노출되면 안 된다.
+    // 그러므로 id field 를 가린다.
+    survey.id = '';
   }
 
   res.status(200).send(gr(survey, "Survey Get Success"));

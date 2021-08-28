@@ -1,12 +1,15 @@
-const express = require("express");
+// Libraries
 const cors = require("cors");
-const bodyParser = require("body-parser");
-const { getResponse: gr, getComment: gc } = require("./utils");
-const mongoose = require("mongoose");
-const { v4: uuidv4 } = require("uuid");
 const jose = require("node-jose");
 const axios = require("axios");
+const express = require("express");
+const mongoose = require("mongoose");
+const bodyParser = require("body-parser");
+const { v4: uuidv4 } = require("uuid");
+
+// Custom modules
 const Survey = require("./models/survey");
+const { getResponse: gr, getComment: gc } = require("./utils");
 
 const PORT = 3000;
 const app = express();
@@ -15,7 +18,7 @@ let verifier = null;
 /**
  * When there are authroization header and it is valid,
  * assign payload of JWT to user attribute of req object.
- * It does not throw error even if jwt is invalid or there are no authroization header.
+ * It DOES NOT throw error or block requests even if jwt is invalid or there are no authroization header.
  */
 async function checkJWT(req, res, next) {
   req.user = {};
@@ -40,8 +43,12 @@ app.get("/", (req, res) => {
 });
 
 app.get("/link", async (req, res) => {
-  // GET /survey 로 하면 어떨까??
-  // GET /survey/:id 와 구분된다.
+  // ToDo: POST /survey 로 하면 어떨까??
+  // POST /survey/:id 와 구분된다.
+  // 그렇게 해야 하는 이유는 GET method 는 Idempotent해야 하기 때문이다.
+  // 즉, 여러 번 호출해도 서버 상태에 변화가 없어야 한다.
+  // 그런데 현재의 /link는 create 동작을 수행하므로 여러 번 수행하면 DB에 여러 documents가 생긴다.
+  // 이는 올바르지 않다.
   try {
     const result = await Survey.create({
       id: uuidv4(),
@@ -65,7 +72,7 @@ app.all("*", (req, res) => {
 });
 
 async function main() {
-  // Connect to database
+  // Connect to mongodb database
   const { DB_USERNAME, DB_PASSWORD } = process.env;
   const encodedPassword = encodeURIComponent(DB_PASSWORD);
   await mongoose.connect(
@@ -78,7 +85,7 @@ async function main() {
   );
   console.log("Successfully connected to mongodb");
 
-  // Get RS254 JWT public key
+  // Get RS256 JWT public key and create verifier
   const response = await axios.get("https://auth.the-form.io/keys");
   const publicKey = response.data;
   const keyStore = await jose.JWK.asKeyStore(publicKey);
