@@ -1,6 +1,8 @@
 const express = require("express");
 const { check, validationResult } = require("express-validator");
-const { getResponse: gr, getComment: gc, checkUUID } = require("../utils");
+const { getResponse: gr, getComment: gc } = require("../utils/response");
+const { checkUUID } = require("../utils/checkUUID");
+const { sendEmail } = require("../utils/sesSendEmail");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
 
@@ -8,7 +10,7 @@ const router = express.Router();
 
 const checkEmail = check("email", "Please include a valid email").isEmail();
 
-router.get('/', (req, res) => {
+router.get("/", (req, res) => {
   // ToDo: 여기서 새로운 설문 생성을 하면 어떨까?
 });
 
@@ -33,7 +35,7 @@ router.get("/:id", async (req, res) => {
   if (survey.deployId === id) {
     // 이렇게 된다는 것은 응답용으로 요청되었다는 의미이다. 이 경우 id field가 노출되면 안 된다.
     // 그러므로 id field 를 가린다.
-    survey.id = '';
+    survey.id = "";
   }
 
   res.status(200).send(gr(survey, "Survey Get Success"));
@@ -54,15 +56,13 @@ router.put("/:id", async (req, res) => {
 router.put("/:id/end", async (req, res) => {
   try {
     const { id } = req.params;
-    const originalSurvey = await Survey.findOneAndUpdate({ id }, {
-      status: "published",
-    }).exec();
-
-    // 여기서 originalDocumnet를 참조하여 만약 이미 published였었으면 에러 반환 가능
-
-    const result = originalSurvey;
-    result.status = 'published';
-    res.status(200).send(gr(result, "Survey End Update Success"));
+    const originalSurvey = await Survey.findOneAndUpdate(
+      { id },
+      {
+        status: "published",
+      }
+    ).exec();
+    res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
   } catch (err) {
     console.log("Failed to put", err);
     res.status(500).send(gc("Server Error"));
@@ -80,19 +80,33 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
   try {
     const { id } = req.params;
     const { email } = req.body;
-    await Survey.updateOne({ id }, { email }).exec();
-    res.status(200).send(gc("Email Update Success"));
+    const before = await Survey.findOneAndUpdate(
+      { id },
+      { email },
+      {
+        new: true,
+      }
+    ).exec();
+    const result = await sendEmail(email, before.title, id, before.deployId);
+    if (!result) {
+      res.status(200).send(gc("Email Send Fail"));
+      return;
+    }
+    res.status(200).send(gc("Email Update and Send Success"));
   } catch (err) {
     console.log("Failed to Update Email", err);
     res.status(500).send(gc("Server Error"));
   }
-}
-);
+});
 
 router.get("/:id/responses", async (req, res) => {
   try {
     const { id } = req.params;
     const survey = await Survey.findOne({ id });
+    if (!survey) {
+      res.status(404).send(gc("No such survey exists."));
+      return;
+    }
     const responses = await Response.find({ deployId: survey.deployId });
     const result = { survey, responses };
     res.status(200).send(gr(result, "Get Responses Success"));
@@ -107,7 +121,7 @@ router.post("/:deployId/responses", async (req, res) => {
   try {
     const { deployId } = req.params;
     const response = { ...req.body, deployId };
-    console.log('res', response);
+    console.log("res", response);
     response.userId = req.user.id;
     await Response.create(response);
     res.status(201).send(gc("Create Response Success"));

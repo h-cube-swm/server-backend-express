@@ -9,7 +9,7 @@ const { v4: uuidv4 } = require("uuid");
 
 // Custom modules
 const Survey = require("./models/survey");
-const { getResponse: gr, getComment: gc } = require("./utils");
+const { getResponse: gr, getComment: gc } = require("./utils/response");
 
 const PORT = 3000;
 const app = express();
@@ -27,7 +27,7 @@ async function checkJWT(req, res, next) {
     const verified = await verifier.verify(token);
     const payload = JSON.parse(verified.payload.toString());
     req.user = payload;
-  } catch (err) { }
+  } catch (err) {}
   next();
 }
 
@@ -53,7 +53,7 @@ app.get("/link", async (req, res) => {
     const result = await Survey.create({
       id: uuidv4(),
       deployId: uuidv4(),
-      userId: req.user.id
+      userId: req.user.id,
     });
     res.status(201).send(gr(result, "Survey Create Success"));
   } catch (err) {
@@ -101,6 +101,6 @@ async function main() {
 try {
   main();
 } catch (err) {
-  console.log('Could not start server');
-  console.log('Error :', err);
+  console.log("Could not start server");
+  console.log("Error :", err);
 }
