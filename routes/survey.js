@@ -49,7 +49,7 @@ router.put("/:id", async (req, res) => {
     await Survey.findOneAndUpdate({ id }, update).exec();
     res.status(200).send(gc("Survey Update Success"));
   } catch (err) {
-    console.log("Faile to Update Survey", err);
+    console.log("Failed to Update Survey", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -65,7 +65,7 @@ router.put("/:id/end", async (req, res) => {
     ).exec();
     res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
   } catch (err) {
-    console.log("Failed to put", err);
+    console.log("Failed to End Survey", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -112,7 +112,7 @@ router.get("/:id/responses", async (req, res) => {
     const result = { survey, responses };
     res.status(200).send(gr(result, "Get Responses Success"));
   } catch (err) {
-    console.log(err);
+    console.log("Failed to Get Response", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -127,7 +127,7 @@ router.post("/:deployId/responses", async (req, res) => {
     await Response.create(response);
     res.status(201).send(gc("Create Response Success"));
   } catch (err) {
-    console.log(err);
+    console.log("Failed to Create Response", err);
     res.status(500).send(gc("Server Error"));
   }
 });
