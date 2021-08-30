@@ -25,6 +25,7 @@ router.get("/:id", async (req, res) => {
   }
 
   // ToDo: 여기 수정할 것. 원래는 엔드포인트를 나눠야 하는데, 하나의 엔드포인트를 사용하고 있다.
+  // 해당 부분 {id}, {deployId}의 객체 형태가 다른 것 같아서, 추후 확인히 필요해 보임
   const survey = await Survey.findOne({ $or: [{ id }, { deployId: id }] });
 
   if (!survey) {
@@ -35,9 +36,9 @@ router.get("/:id", async (req, res) => {
   if (survey.deployId === id) {
     // 이렇게 된다는 것은 응답용으로 요청되었다는 의미이다. 이 경우 id field가 노출되면 안 된다.
     // 그러므로 id field 를 가린다.
+    // 해당 부분 {deployId}의 형태에서는 정상적으로 데이터 원본이 수정이 안되고 동작하지만, 확인이 필요해보임
     survey.id = "";
   }
-
   res.status(200).send(gr(survey, "Survey Get Success"));
 });
 
