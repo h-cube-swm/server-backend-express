@@ -7,7 +7,7 @@ const userSchema = mongoose.Schema(
     localId: String,
     date: { type: Date, default: Date.now },
   },
-  { strict: false }
+  { strict: false, timestamps: true }
 );
 
 // Create Model

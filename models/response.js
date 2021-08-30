@@ -6,9 +6,8 @@ const responseSchema = mongoose.Schema(
     userId: String, // 응답하는 사람
     surveyId: String,
     responses: {},
-    date: { type: Date, default: Date.now },
   },
-  { strict: false }
+  { strict: false, timestamps: true }
 );
 
 // Create Model
