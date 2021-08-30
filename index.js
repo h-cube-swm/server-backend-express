@@ -57,7 +57,7 @@ app.get("/link", async (req, res) => {
     });
     res.status(201).send(gr(result, "Survey Create Success"));
   } catch (err) {
-    console.log("Faile to Create Link");
+    console.log("Fail to Create Link", err);
     res.status(500).send(gc("Server Error"));
   }
 });
