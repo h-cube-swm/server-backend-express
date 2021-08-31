@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const responseSchema = mongoose.Schema(
   {
     userId: String, // 응답하는 사람
-    surveyId: String,
+    deployId: String, // 엔드포인트에서 파싱하는 deployId
     responses: {},
   },
   { strict: false, timestamps: true }
