@@ -74,13 +74,13 @@ app.all("*", (req, res) => {
 async function main() {
   // Connect to mongodb database
   const { DB_USERNAME, DB_PASSWORD } = process.env;
-  const encodedPassword = encodeURIComponent(DB_PASSWORD);
   await mongoose.connect(
-    `mongodb://${DB_USERNAME}:${encodedPassword}@mongo:27017/`,
+    `mongodb+srv://${DB_USERNAME}:${DB_PASSWORD}@the-form.0quwb.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`,
     {
-      useUnifiedTopology: true,
       useNewUrlParser: true,
       useFindAndModify: false,
+      useCreateIndex: true,
+      useUnifiedTopology: true,
     }
   );
   console.log("Successfully connected to mongodb");
