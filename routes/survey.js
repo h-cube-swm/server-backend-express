@@ -3,6 +3,7 @@ const { check, validationResult } = require("express-validator");
 const { getResponse: gr, getComment: gc } = require("../utils/response");
 const { checkUUID } = require("../utils/checkUUID");
 const { sendEmail } = require("../utils/sesSendEmail");
+const { v4: uuidv4 } = require("uuid");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
 
@@ -10,8 +11,19 @@ const router = express.Router();
 
 const checkEmail = check("email", "Please include a valid email").isEmail();
 
-router.get("/", (req, res) => {
+router.post("/", async (req, res) => {
   // ToDo: 여기서 새로운 설문 생성을 하면 어떨까?
+  try {
+    const result = await Survey.create({
+      id: uuidv4(),
+      deployId: uuidv4(),
+      userId: req.user.id,
+    });
+    res.status(201).send(gr(result, "Survey Create Success"));
+  } catch (err) {
+    console.log("Fail to Create Link", err);
+    res.status(500).send(gc("Server Error"));
+  }
 });
 
 router.get("/:id", async (req, res) => {
