@@ -51,16 +51,13 @@ app.all("*", (req, res) => {
 
 async function main() {
   // Connect to mongodb database
-  const { DB_USERNAME, DB_PASSWORD } = process.env;
-  await mongoose.connect(
-    `mongodb+srv://${DB_USERNAME}:${DB_PASSWORD}@the-form.0quwb.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`,
-    {
-      useNewUrlParser: true,
-      useFindAndModify: false,
-      useCreateIndex: true,
-      useUnifiedTopology: true,
-    }
-  );
+  const { DB_URL } = process.env;
+  await mongoose.connect(`${DB_URL}`, {
+    useNewUrlParser: true,
+    useFindAndModify: false,
+    useCreateIndex: true,
+    useUnifiedTopology: true,
+  });
   console.log("Successfully connected to mongodb");
 
   // Get RS256 JWT public key and create verifier
