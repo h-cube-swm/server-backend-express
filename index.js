@@ -5,11 +5,9 @@ const axios = require("axios");
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
-const { v4: uuidv4 } = require("uuid");
 
 // Custom modules
-const Survey = require("./models/survey");
-const { getResponse: gr, getComment: gc } = require("./utils/response");
+const { getComment: gc } = require("./utils/response");
 
 const PORT = 3000;
 const app = express();
