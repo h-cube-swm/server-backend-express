@@ -29,7 +29,7 @@ router.post("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
 
-  if (!checkUUID(id)) {
+  if (!(await checkUUID(id))) {
     res
       .status(400)
       .send(gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"));
@@ -115,6 +115,17 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
 router.get("/:id/responses", async (req, res) => {
   try {
     const { id } = req.params;
+
+    // 현재 router.get("/:id")에서도 쓰이는데 미들웨어로 빼는 것도 고려해도 됨
+    if (!(await checkUUID(id))) {
+      res
+        .status(400)
+        .send(
+          gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)")
+        );
+      return;
+    }
+
     const survey = await Survey.findOne({ id });
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
@@ -133,6 +144,11 @@ router.post("/:deployId/responses", async (req, res) => {
   // 추후 userId도 추가해야함
   try {
     const { deployId } = req.params;
+    const survey = await Survey.findOne({ deployId });
+    if (!survey) {
+      res.status(404).send(gc("No such survey exists."));
+      return;
+    }
     const response = { ...req.body, deployId };
     console.log("res", response);
     response.userId = req.user.id;
