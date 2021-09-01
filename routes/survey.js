@@ -66,6 +66,17 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Survey.deleteOne({ id }).exec();
+    res.status(200).send(gc("Survey Delete Success"));
+  } catch (err) {
+    console.log("Failed to Delete Survey", err);
+    res.status(500).send(gc("Server Error"));
+  }
+});
+
 router.put("/:id/end", async (req, res) => {
   try {
     const { id } = req.params;
@@ -141,7 +152,6 @@ router.get("/:id/responses", async (req, res) => {
 });
 
 router.post("/:deployId/responses", async (req, res) => {
-  // 추후 userId도 추가해야함
   try {
     const { deployId } = req.params;
     const survey = await Survey.findOne({ deployId });
