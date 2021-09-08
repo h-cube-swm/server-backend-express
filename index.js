@@ -9,7 +9,7 @@ const bodyParser = require("body-parser");
 // Custom modules
 const { getComment: gc } = require("./utils/response");
 
-const PORT = 3000;
+const PORT = 80;
 const app = express();
 let verifier = null;
 
@@ -25,7 +25,7 @@ async function checkJWT(req, res, next) {
     const verified = await verifier.verify(token);
     const payload = JSON.parse(verified.payload.toString());
     req.user = payload;
-  } catch (err) {}
+  } catch (err) { }
   next();
 }
 

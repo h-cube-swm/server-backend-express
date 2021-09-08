@@ -10,3 +10,5 @@ RUN yarn
 COPY ./ ./
 
 CMD ["npm", "start"]
+
+EXPOSE 80
