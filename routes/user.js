@@ -6,7 +6,7 @@ const Survey = require("../models/survey");
 const router = express.Router();
 
 router.get("/surveys", async (req, res) => {
-  if (!req.user) {
+  if (!req.user || !req.user.id) {
     res.status(400).send(gc("Not logged in."));
     return;
   }
@@ -22,8 +22,8 @@ router.get("/surveys", async (req, res) => {
   }
 });
 
-router.get("/", (req, res) => {});
+router.get("/", (req, res) => { });
 
-router.post("/", (req, res) => {});
+router.post("/", (req, res) => { });
 
 module.exports = router;
