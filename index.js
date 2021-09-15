@@ -1,7 +1,5 @@
 // Libraries
 const cors = require("cors");
-const jose = require("node-jose");
-const axios = require("axios");
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");

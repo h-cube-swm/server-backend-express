@@ -1,3 +1,6 @@
+const jose = require("node-jose");
+const axios = require("axios");
+
 const AUTH_KEY_URL = "https://auth.the-form.io/keys";
 
 let verifier = null;
