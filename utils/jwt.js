@@ -3,7 +3,7 @@ const AUTH_KEY_URL = "https://auth.the-form.io/keys";
 let verifier = null;
 
 let timeout = true;
-function updateKeyStore() {
+async function updateKeyStore() {
   if (!timeout) return;
   timeout = false;
   setTimeout(() => {
