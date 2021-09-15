@@ -5,13 +5,13 @@ const axios = require("axios");
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
+const verify = require("./utils/jwt");
 
 // Custom modules
 const { getComment: gc } = require("./utils/response");
 
 const PORT = 80;
 const app = express();
-let verifier = null;
 
 /**
  * When there are authroization header and it is valid,
@@ -22,7 +22,7 @@ async function checkJWT(req, res, next) {
   req.user = {};
   try {
     const token = req.headers.authorization.split("Bearer ")[1];
-    const verified = await verifier.verify(token);
+    const verified = await verify(token);
     const payload = JSON.parse(verified.payload.toString());
     req.user = payload;
   } catch (err) { }
@@ -59,13 +59,6 @@ async function main() {
     useUnifiedTopology: true,
   });
   console.log("Successfully connected to mongodb");
-
-  // Get RS256 JWT public key and create verifier
-  const response = await axios.get("https://auth.the-form.io/keys");
-  const publicKey = response.data;
-  const keyStore = await jose.JWK.asKeyStore(publicKey);
-  verifier = jose.JWS.createVerify(keyStore);
-  console.log("Successfully got JWT public keys");
 
   // Start server application
   app.listen(PORT, () => {
