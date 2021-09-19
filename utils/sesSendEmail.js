@@ -50,7 +50,7 @@ const sendEmail = async (recipientEmail, title, surveyId, deployId) => {
     };
     await AWS_SES.sendEmail(params).promise();
   } catch (err) {
-    console.log("이메일 송신에 실패하였습니다.");
+    console.log("이메일 송신에 실패하였습니다.", err);
     return false;
   }
   return true;
