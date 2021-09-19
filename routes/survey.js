@@ -113,7 +113,7 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
     ).exec();
     const result = await sendEmail(email, before.title, id, before.deployId);
     if (!result) {
-      res.status(200).send(gc("Email Send Fail"));
+      res.status(400).send(gc("Email Send Fail"));
       return;
     }
     res.status(200).send(gc("Email Update and Send Success"));
