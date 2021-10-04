@@ -2,12 +2,12 @@ FROM node:14
 
 WORKDIR /app
 
-COPY package.json ./
-COPY yarn.lock ./
+COPY src/package.json ./
+COPY src/yarn.lock ./
 
 RUN yarn
 
-COPY ./ ./
+COPY src/ ./
 
 CMD ["npm", "start"]
 
