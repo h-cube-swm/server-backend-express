@@ -1,5 +1,6 @@
 schema.js
 docker.sh
+.env.json
 
 ### Node ###
 # Logs
