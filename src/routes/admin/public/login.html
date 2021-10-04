@@ -42,10 +42,10 @@
       </div>
     </div>
     <script type="module">
-      import { isLoggedIn } from "./api.js";
+      import { getIsLoggedIn } from "./api.js";
 
       async function main() {
-        const loggedIn = await isLoggedIn();
+        const loggedIn = await getIsLoggedIn();
         if (loggedIn) location.href = "/admin";
       }
 

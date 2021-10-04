@@ -18,13 +18,28 @@
         <a href="/admin/logout" class="btn btn-outline-secondary">logout</a>
       </div>
     </nav>
-    <div class="container mt-4 mb-4"></div>
+    <div class="container mt-4 mb-4">
+      <ul id="main-list"></ul>
+    </div>
     <script type="module">
-      import { isLoggedIn } from "./api.js";
+      import { getIsLoggedIn, getSurveys } from "./api.js";
+      import "https://code.jquery.com/jquery-3.6.0.min.js";
 
       async function main() {
-        const loggedIn = await isLoggedIn();
+        const loggedIn = await getIsLoggedIn();
         if (!loggedIn) location.href = "/admin/login";
+
+        const list = $("#main-list");
+        const surveys = await getSurveys();
+        surveys.forEach((x) => {
+          const row = $("<li></li>");
+          const a = $("<a>");
+          a.attr("href", "/admin/survey/" + x.survey.id);
+          a.html(`${x.survey.title} (${x.responseCount})`);
+          row.append(a);
+          list.append(row);
+          return row;
+        });
       }
 
       main();
