@@ -12,9 +12,13 @@
     <title>Backoffice</title>
   </head>
   <body>
-    <div class="container mt-4 mb-4">
-      <h1>Dashboard</h1>
-    </div>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container-fluid">
+        <div class="navbar-brand mr-auto">Dashboard</div>
+        <a href="/admin/logout" class="btn btn-outline-secondary">logout</a>
+      </div>
+    </nav>
+    <div class="container mt-4 mb-4"></div>
     <script type="module">
       import { isLoggedIn } from "./api.js";
 

@@ -12,33 +12,45 @@
     <title>Login</title>
   </head>
   <body>
-    <div class="container mt-4 mb-4">
-      <h1>Login</h1>
-      <form action="/admin/login" method="POST" class="w-25">
-        <div class="mb-3">
-          <label for="input-email" class="form-label">Email address</label>
-          <input
-            type="email"
-            class="form-control"
-            id="input-email"
-            name="email"
-            placeholder="name@example.com"
-          />
-        </div>
-        <div class="mb-3">
-          <label for="input-password" class="form-label">Password</label>
-          <input
-            type="password"
-            class="form-control"
-            id="input-password"
-            name="password"
-          />
-        </div>
-        <div class="mb-4">
-          <input type="submit" class="form-control" value="Login" />
-        </div>
-      </form>
+    <div class="container mt-4 mb-4 d-flex justify-content-center">
+      <div>
+        <h1>Login</h1>
+        <form action="/admin/login" method="POST">
+          <div class="mb-3">
+            <label for="input-email" class="form-label">Email address</label>
+            <input
+              type="email"
+              class="form-control"
+              id="input-email"
+              name="email"
+              placeholder="name@example.com"
+            />
+          </div>
+          <div class="mb-3">
+            <label for="input-password" class="form-label">Password</label>
+            <input
+              type="password"
+              class="form-control"
+              id="input-password"
+              name="password"
+            />
+          </div>
+          <div class="mb-4">
+            <input type="submit" class="form-control" value="Login" />
+          </div>
+        </form>
+      </div>
     </div>
+    <script type="module">
+      import { isLoggedIn } from "./api.js";
+
+      async function main() {
+        const loggedIn = await isLoggedIn();
+        if (loggedIn) location.href = "/admin";
+      }
+
+      main();
+    </script>
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ"
