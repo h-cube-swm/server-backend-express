@@ -7,7 +7,8 @@ const Survey = require('../../models/survey');
 const Response = require('../../models/response');
 
 module.exports = (database) => {
-  const { ADMIN, COOKIE_SECRET } = JSON.parse(fs.readFileSync(path.join(__dirname, '.env.json')));
+  const { ADMIN, COOKIE_SECRET } = { ADMIN: {}, COOKIE_SECRET: null };
+  //  JSON.parse(fs.readFileSync(path.join(__dirname, '.env.json')));
 
   const app = express.Router();
 
@@ -28,14 +29,14 @@ module.exports = (database) => {
     res.send({ data: req.session.isLoggedIn });
   });
 
-  app.post('/login', (req, res) => {
-    if (req.body.email === ADMIN.email && req.body.password === ADMIN.password) {
-      req.session.isLoggedIn = true;
-      res.redirect('/admin');
-    } else {
-      req.session.destroy();
-    }
-  });
+  // app.post('/login', (req, res) => {
+  //   if (req.body.email === ADMIN.email && req.body.password === ADMIN.password) {
+  //     req.session.isLoggedIn = true;
+  //     res.redirect('/admin');
+  //   } else {
+  //     req.session.destroy();
+  //   }
+  // });
 
   app.use((req, res, next) => {
     if (req.session.isLoggedIn) {
