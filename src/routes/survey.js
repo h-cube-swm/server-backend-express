@@ -84,6 +84,7 @@ router.put("/:id/end", async (req, res) => {
       { id },
       {
         status: "published",
+        userId: req.user.id,
       }
     ).exec();
     res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
