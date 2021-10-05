@@ -10,6 +10,8 @@ const surveySchema = mongoose.Schema(
     description: String,
     questions: Array,
     status: String,
+    createdAt: Date,
+    updatedAt: Date
   },
   { strict: false, timestamps: true }
 );
