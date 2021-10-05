@@ -16,18 +16,18 @@ module.exports = (database) => {
   const oneDay = 1000 * 60 * 60 * 24;
 
   //session middleware
-  app.use(session({
-    secret: COOKIE_SECRET,
-    saveUninitialized: true,
-    cookie: { maxAge: oneDay },
-    resave: false
-  }));
+  // app.use(session({
+  //   secret: COOKIE_SECRET,
+  //   saveUninitialized: true,
+  //   cookie: { maxAge: oneDay },
+  //   resave: false
+  // }));
 
-  app.use(express.static(path.join(__dirname, 'public')));
+  // app.use(express.static(path.join(__dirname, 'public')));
 
-  app.get('/isLoggedIn', (req, res) => {
-    res.send({ data: req.session.isLoggedIn });
-  });
+  // app.get('/isLoggedIn', (req, res) => {
+  //   res.send({ data: req.session.isLoggedIn });
+  // });
 
   // app.post('/login', (req, res) => {
   //   if (req.body.email === ADMIN.email && req.body.password === ADMIN.password) {
