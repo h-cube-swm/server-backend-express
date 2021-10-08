@@ -11,7 +11,11 @@ const surveySchema = mongoose.Schema(
     questions: Array,
     status: String,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
+    branching: Object,
+    counter: Number,
+    selectedIndex: Number,
+    email: String,
   },
   { strict: false, timestamps: true }
 );
