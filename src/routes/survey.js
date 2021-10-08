@@ -171,4 +171,56 @@ router.post("/:deployId/responses", async (req, res) => {
   }
 });
 
+// Copy Survey
+router.post("/copy", async (req, res) => {
+  try {
+    if (Object.keys(req.body).length === 0) {
+      res.status(400).send(gc("UUID Field is required"));
+      return;
+    }
+    if (!req.user || !req.user.id) {
+      res.status(400).send(gc("Not logged in."));
+      return;
+    }
+    const { sid: id } = req.body;
+    const userId = req.user.id;
+
+    const survey = await Survey.findOne({ id });
+    if (!survey) {
+      res.status(404).send(gc("Cannot find survey"));
+      return;
+    }
+
+    const {
+      userId: originId,
+      title,
+      description,
+      questions,
+      branching,
+      counter,
+    } = survey;
+
+    if (userId.toString() !== originId) {
+      res.status(404).send(gc("This survey is not belong to this user"));
+      return;
+    }
+
+    const result = await Survey.create({
+      id: uuidv4(),
+      deployId: uuidv4(),
+      userId: originId,
+      title: title,
+      description: description,
+      questions: questions,
+      branching: branching,
+      counter: counter,
+      selectedIndex: 0,
+    });
+    res.status(200).send(gr(result, "Create Copied Survey Success"));
+  } catch (err) {
+    console.log("Failed to Create Copied Survey", err);
+    res.status(500).send(gc("Server Error"));
+  }
+});
+
 module.exports = router;
