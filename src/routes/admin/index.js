@@ -4,19 +4,21 @@ const Survey = require('../../models/survey');
 const Response = require('../../models/response');
 
 function checkRange({ limit, offset }) {
-  if (isNaN(limit)) limit = 50;
+  const MAX_LIMIT = 25;
+
+  if (isNaN(limit)) limit = MAX_LIMIT;
   if (isNaN(offset)) offset = 0;
   limit = +limit;
   offset = +offset;
   if (limit < 0) limit = 0;
-  if (limit > 20) limit = 20;
+  if (limit > MAX_LIMIT) limit = MAX_LIMIT;
   if (offset < 0) offset = 0;
   return { limit, offset };
 }
 
 module.exports = (database) => {
 
-  let adminList = [];
+  let adminList = [1804921266];
 
   try {
     adminList = JSON.parse(process.env.ADMIN_LIST) || [];
@@ -25,43 +27,31 @@ module.exports = (database) => {
   const app = express.Router();
 
   app.get('/isLoggedIn', (req, res) => {
-    res.send({ data: adminList.indexOf(req.user.id) >= 0 });
+    res.send({ result: adminList.indexOf(req.user.id) >= 0 });
   });
 
   app.use((req, res, next) => {
     if (adminList.indexOf(req.user.id) >= 0) {
       next();
     } else {
-      res.redirect('/');
+      res.send({ result: {} });
     }
   });
 
-  app.get('/test', (_, res) => res.send({ data: 'OK' }));
+  app.get('/test', (req, res) => res.send({ result: 'OK' }));
 
   app.get('/surveys', (req, res) => {
     let { limit, offset } = checkRange(req.query);
-    let { condition, order } = req.query;
-
-    Response.find(condition || {})
-      .sort(order || { createdAt: -1 })
-      .skip(offset)
-      .limit(limit)
-      .exec((err, data) => res.send({ err, data }));
-  });
-
-  app.get('/surveys/count', (req, res) => {
-    let { limit, offset } = checkRange(req.query);
     let { order } = req.query;
 
-    Response.aggregate([
-      { "$group": { "_id": "$deployId", "responseCount": { "$sum": 1 } } },
-      { "$lookup": { "from": "surveys", "localField": "_id", "foreignField": "deployId", "as": "survey" } },
-      { "$unwind": { path: "$survey" } },
+    Survey.aggregate([
+      { "$lookup": { "from": "response", "localField": "deployId", "foreignField": "deployId", "as": "responses" } },
+      { "$addFields": { "responseCount": { $size: '$responses' } } }
     ])
       .sort(order || { responseCount: -1 })
       .skip(offset)
       .limit(limit)
-      .exec((err, data) => res.send({ err, data }));
+      .exec((err, data) => res.send({ err, result: data }));
   });
 
   return app;
