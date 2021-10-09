@@ -56,9 +56,9 @@ jobs:
         run: |
           docker build \
             --tag ${{ env.RELEASE_IMAGE }} \
-            --push \
             .
           docker tag ${{ env.RELEASE_IMAGE }} ${{ env.LATEST }}
+          docker push ${{ env.RELEASE_IMAGE }}
           docker push ${{ env.LATEST }}
           echo "::set-output name=image::${{ env.RELEASE_IMAGE }}"
 
