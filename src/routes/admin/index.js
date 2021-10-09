@@ -45,10 +45,11 @@ module.exports = (database) => {
     let { order } = req.query;
 
     Survey.aggregate([
-      { "$lookup": { "from": "response", "localField": "deployId", "foreignField": "deployId", "as": "responses" } },
-      { "$addFields": { "responseCount": { $size: '$responses' } } }
+      { "$lookup": { "from": "responses", "localField": "deployId", "foreignField": "deployId", "as": "responses" } },
+      { "$addFields": { "responseCount": { $size: '$responses' } } },
+      { "$unset": "responses" }
     ])
-      .sort(order || { responseCount: -1 })
+      .sort(order || { createdAt: -1 })
       .skip(offset)
       .limit(limit)
       .exec((err, data) => res.send({ err, result: data }));
