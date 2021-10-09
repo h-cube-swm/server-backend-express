@@ -49,7 +49,7 @@ module.exports = (database) => {
       .exec((err, data) => res.send({ err, data }));
   });
 
-  app.get('/surveys/', (req, res) => {
+  app.get('/surveys/count', (req, res) => {
     let { limit, offset } = checkRange(req.query);
     let { order } = req.query;
 
