@@ -59,6 +59,7 @@ jobs:
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache-new \
             --tag ${{ env.RELEASE_IMAGE }} \
+            --tag latest \ 
             --push \
             .
           rm -rf /tmp/.buildx-cache
