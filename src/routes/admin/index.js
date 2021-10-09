@@ -1,73 +1,64 @@
 const express = require("express");
-const fs = require('fs');
-const path = require('path');
-const session = require('express-session');
 const User = require('../../models/user');
 const Survey = require('../../models/survey');
 const Response = require('../../models/response');
 
+function checkRange({ limit, offset }) {
+  if (isNaN(limit)) limit = 50;
+  if (isNaN(offset)) offset = 0;
+  limit = +limit;
+  offset = +offset;
+  if (limit < 0) limit = 0;
+  if (limit > 20) limit = 20;
+  if (offset < 0) offset = 0;
+  return { limit, offset };
+}
+
 module.exports = (database) => {
-  const { ADMIN, COOKIE_SECRET } = { ADMIN: {}, COOKIE_SECRET: null };
-  //  JSON.parse(fs.readFileSync(path.join(__dirname, '.env.json')));
+
+  let adminList = [];
+
+  try {
+    adminList = JSON.parse(process.env.ADMIN_LIST) || [];
+  } catch { }
 
   const app = express.Router();
 
-  // creating 24 hours from milliseconds
-  const oneDay = 1000 * 60 * 60 * 24;
-
-  //session middleware
-  // app.use(session({
-  //   secret: COOKIE_SECRET,
-  //   saveUninitialized: true,
-  //   cookie: { maxAge: oneDay },
-  //   resave: false
-  // }));
-
-  // app.use(express.static(path.join(__dirname, 'public')));
-
-  // app.get('/isLoggedIn', (req, res) => {
-  //   res.send({ data: req.session.isLoggedIn });
-  // });
-
-  // app.post('/login', (req, res) => {
-  //   if (req.body.email === ADMIN.email && req.body.password === ADMIN.password) {
-  //     req.session.isLoggedIn = true;
-  //     res.redirect('/admin');
-  //   } else {
-  //     req.session.destroy();
-  //   }
-  // });
+  app.get('/isLoggedIn', (req, res) => {
+    res.send({ data: adminList.indexOf(req.user.id) >= 0 });
+  });
 
   app.use((req, res, next) => {
-    if (req.session.isLoggedIn) {
+    if (adminList.indexOf(req.user.id) >= 0) {
       next();
     } else {
-      res.redirect('/admin/login.html');
+      res.redirect('/');
     }
   });
 
   app.get('/test', (_, res) => res.send({ data: 'OK' }));
 
-  app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/admin/login.html');
+  app.get('/surveys', (req, res) => {
+    let { limit, offset } = checkRange(req.query);
+    let { condition, order } = req.query;
+
+    Response.find(condition || {})
+      .sort(order || { createdAt: -1 })
+      .skip(offset)
+      .limit(limit)
+      .exec((err, data) => res.send({ err, data }));
   });
 
-  app.get('/surveys', (req, res) => {
-    let { limit, offset } = req.query;
-    if (isNaN(limit)) limit = 50;
-    if (isNaN(offset)) offset = 0;
-    limit = +limit;
-    offset = +offset;
-    if (limit < 0) limit = 0;
-    if (limit > 20) limit = 20;
-    if (offset < 0) offset = 0;
+  app.get('/surveys/', (req, res) => {
+    let { limit, offset } = checkRange(req.query);
+    let { order } = req.query;
+
     Response.aggregate([
       { "$group": { "_id": "$deployId", "responseCount": { "$sum": 1 } } },
       { "$lookup": { "from": "surveys", "localField": "_id", "foreignField": "deployId", "as": "survey" } },
       { "$unwind": { path: "$survey" } },
     ])
-      .sort({ responseCount: -1 })
+      .sort(order || { responseCount: -1 })
       .skip(offset)
       .limit(limit)
       .exec((err, data) => res.send({ err, data }));
