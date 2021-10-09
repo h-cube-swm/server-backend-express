@@ -18,11 +18,13 @@ function checkRange({ limit, offset }) {
 
 module.exports = (database) => {
 
-  let adminList = [1804921266];
+  let adminList = [];
 
   try {
     adminList = JSON.parse(process.env.ADMIN_LIST) || [];
-  } catch { }
+  } catch {
+    adminList = [];
+  }
 
   const app = express.Router();
 
@@ -42,13 +44,16 @@ module.exports = (database) => {
 
   app.get('/surveys', (req, res) => {
     let { limit, offset } = checkRange(req.query);
-    let { order } = req.query;
+    let { condition, order } = req.query;
 
-    Survey.aggregate([
+    const aggregates = [
       { "$lookup": { "from": "responses", "localField": "deployId", "foreignField": "deployId", "as": "responses" } },
       { "$addFields": { "responseCount": { $size: '$responses' } } },
       { "$unset": "responses" }
-    ])
+    ];
+    if (condition) aggregates.push({ "$match": JSON.parse(condition) });
+
+    Survey.aggregate(aggregates)
       .sort(order || { createdAt: -1 })
       .skip(offset)
       .limit(limit)
