@@ -67,7 +67,14 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const update = { ...req.body };
-    await Survey.findOneAndUpdate({ id, ...IS_EDITTING }, update).exec();
+    const result = await Survey.findOneAndUpdate(
+      { id, ...IS_EDITTING },
+      update
+    ).exec();
+    if (!result) {
+      res.status(404).send(gc("Cannot find survey"));
+      return;
+    }
     res.status(200).send(gc("Survey Update Success"));
   } catch (err) {
     console.log("Failed to Update Survey", err);
