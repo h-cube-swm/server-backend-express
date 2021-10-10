@@ -12,7 +12,7 @@ router.get("/surveys", async (req, res) => {
   }
   try {
     const surveys = await Survey.find(
-      { userId: req.user.id },
+      { userId: req.user.id, status: { $ne: "deleted" } },
       { questions: 0 }
     ).exec();
     res.status(200).send(gr(surveys, "Get All Survey Succeess"));
@@ -22,8 +22,8 @@ router.get("/surveys", async (req, res) => {
   }
 });
 
-router.get("/", (req, res) => { });
+router.get("/", (req, res) => {});
 
-router.post("/", (req, res) => { });
+router.post("/", (req, res) => {});
 
 module.exports = router;
