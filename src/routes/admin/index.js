@@ -1,7 +1,7 @@
 const express = require("express");
-const User = require('../../models/user');
-const Survey = require('../../models/survey');
-const Response = require('../../models/response');
+const User = require("../../models/user");
+const Survey = require("../../models/survey");
+const Response = require("../../models/response");
 
 function checkRange({ limit, offset }) {
   const MAX_LIMIT = 25;
@@ -17,7 +17,6 @@ function checkRange({ limit, offset }) {
 }
 
 module.exports = (database) => {
-
   let adminList = [];
 
   try {
@@ -28,7 +27,7 @@ module.exports = (database) => {
 
   const app = express.Router();
 
-  app.get('/isLoggedIn', (req, res) => {
+  app.get("/isLoggedIn", (req, res) => {
     res.send({ result: adminList.indexOf(req.user.id) >= 0 });
   });
 
@@ -40,24 +39,38 @@ module.exports = (database) => {
     }
   });
 
-  app.get('/test', (req, res) => res.send({ result: 'OK' }));
+  app.get("/test", (req, res) => res.send({ result: "OK" }));
 
-  app.get('/surveys', (req, res) => {
+  app.get("/surveys", async (req, res) => {
     let { limit, offset } = checkRange(req.query);
     let { condition, order } = req.query;
 
     const aggregates = [
-      { "$lookup": { "from": "responses", "localField": "deployId", "foreignField": "deployId", "as": "responses" } },
-      { "$addFields": { "responseCount": { $size: '$responses' } } },
-      { "$unset": "responses" }
+      {
+        $lookup: {
+          from: "responses",
+          localField: "deployId",
+          foreignField: "deployId",
+          as: "responses",
+        },
+      },
+      { $addFields: { responseCount: { $size: "$responses" } } },
+      { $unset: "responses" },
     ];
-    if (condition) aggregates.push({ "$match": JSON.parse(condition) });
+    if (condition) aggregates.push({ $match: JSON.parse(condition) });
 
-    Survey.aggregate(aggregates)
+    const result = await Survey.aggregate(aggregates)
       .sort(order || { createdAt: -1 })
       .skip(offset)
       .limit(limit)
-      .exec((err, data) => res.send({ err, result: data }));
+      .exec();
+    res.send({ result });
+  });
+
+  app.get("/surveys/:id", async (req, res) => {
+    const { id } = req.params;
+    const result = await Survey.findOne({ $or: [{ id }, { deployId: id }] });
+    res.send({ result });
   });
 
   return app;
