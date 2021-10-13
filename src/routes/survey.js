@@ -214,6 +214,7 @@ router.post("/copy", async (req, res) => {
 
     const newSurvey = await Survey.create({
       ...originalSurvey,
+      status: "editting",
       id: uuidv4(),
       deployId: uuidv4(),
     });
