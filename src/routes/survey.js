@@ -7,17 +7,22 @@ const { v4: uuidv4 } = require("uuid");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
 
+const NOT_DELTED = { status: { $ne: "deleted" } };
+const IS_EDITTING = {
+  $or: [{ status: "editting" }, { status: { $exists: false } }],
+};
+
 const router = express.Router();
 
 const checkEmail = check("email", "Please include a valid email").isEmail();
 
 router.post("/", async (req, res) => {
-  // ToDo: 여기서 새로운 설문 생성을 하면 어떨까?
   try {
     const result = await Survey.create({
       id: uuidv4(),
       deployId: uuidv4(),
       userId: req.user.id,
+      status: "editting",
     });
     res.status(201).send(gr(result, "Survey Create Success"));
   } catch (err) {
@@ -38,7 +43,10 @@ router.get("/:id", async (req, res) => {
 
   // ToDo: 여기 수정할 것. 원래는 엔드포인트를 나눠야 하는데, 하나의 엔드포인트를 사용하고 있다.
   // 해당 부분 {id}, {deployId}의 객체 형태가 다른 것 같아서, 추후 확인히 필요해 보임
-  const survey = await Survey.findOne({ $or: [{ id }, { deployId: id }] });
+  const survey = await Survey.findOne({
+    $or: [{ id }, { deployId: id }],
+    ...NOT_DELTED,
+  });
 
   if (!survey) {
     res.status(404).send(gc("Cannot find survey"));
@@ -51,14 +59,22 @@ router.get("/:id", async (req, res) => {
     // 해당 부분 {deployId}의 형태에서는 정상적으로 데이터 원본이 수정이 안되고 동작하지만, 확인이 필요해보임
     survey.id = "";
   }
-  res.status(200).send(gr(survey, "Survey Get Success"));
+
+  res.status(200).send(gr(survey, "Successfully got survey"));
 });
 
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const update = { ...req.body };
-    await Survey.findOneAndUpdate({ id }, update).exec();
+    const result = await Survey.findOneAndUpdate(
+      { id, ...IS_EDITTING },
+      update
+    ).exec();
+    if (!result) {
+      res.status(404).send(gc("Cannot find survey"));
+      return;
+    }
     res.status(200).send(gc("Survey Update Success"));
   } catch (err) {
     console.log("Failed to Update Survey", err);
@@ -69,7 +85,8 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    await Survey.deleteOne({ id }).exec();
+    const update = { status: "deleted" };
+    await Survey.findOneAndUpdate({ id, ...NOT_DELTED }, update).exec();
     res.status(200).send(gc("Survey Delete Success"));
   } catch (err) {
     console.log("Failed to Delete Survey", err);
@@ -81,11 +98,8 @@ router.put("/:id/end", async (req, res) => {
   try {
     const { id } = req.params;
     const originalSurvey = await Survey.findOneAndUpdate(
-      { id },
-      {
-        status: "published",
-        userId: req.user.id,
-      }
+      { id, ...NOT_DELTED },
+      { status: "published", userId: req.user.id }
     ).exec();
     res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
   } catch (err) {
@@ -106,11 +120,9 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
     const { id } = req.params;
     const { email } = req.body;
     const before = await Survey.findOneAndUpdate(
-      { id },
+      { id, ...NOT_DELTED },
       { email },
-      {
-        new: true,
-      }
+      { new: true }
     ).exec();
     const result = await sendEmail(email, before.title, id, before.deployId);
     if (!result) {
@@ -138,7 +150,7 @@ router.get("/:id/responses", async (req, res) => {
       return;
     }
 
-    const survey = await Survey.findOne({ id });
+    const survey = await Survey.findOne({ id, ...NOT_DELTED });
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
       return;
@@ -155,13 +167,12 @@ router.get("/:id/responses", async (req, res) => {
 router.post("/:deployId/responses", async (req, res) => {
   try {
     const { deployId } = req.params;
-    const survey = await Survey.findOne({ deployId });
+    const survey = await Survey.findOne({ deployId, ...NOT_DELTED });
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
       return;
     }
     const response = { ...req.body, deployId };
-    console.log("res", response);
     response.userId = req.user.id;
     await Response.create(response);
     res.status(201).send(gc("Create Response Success"));
@@ -174,49 +185,41 @@ router.post("/:deployId/responses", async (req, res) => {
 // Copy Survey
 router.post("/copy", async (req, res) => {
   try {
-    if (Object.keys(req.body).length === 0) {
-      res.status(400).send(gc("UUID Field is required"));
+    if (!req.body.sid) {
+      res.status(400).send(gc("sid field is required"));
       return;
     }
+
     if (!req.user || !req.user.id) {
       res.status(400).send(gc("Not logged in."));
       return;
     }
+
     const { sid: id } = req.body;
     const userId = req.user.id;
 
-    const survey = await Survey.findOne({ id });
-    if (!survey) {
+    const originalSurvey = await Survey.findOne(
+      {
+        userId,
+        id,
+        ...NOT_DELTED,
+      },
+      "-_id"
+    ).lean();
+
+    if (!originalSurvey) {
       res.status(404).send(gc("Cannot find survey"));
       return;
     }
 
-    const {
-      userId: originId,
-      title,
-      description,
-      questions,
-      branching,
-      counter,
-    } = survey;
-
-    if (userId.toString() !== originId) {
-      res.status(404).send(gc("This survey is not belong to this user"));
-      return;
-    }
-
-    const result = await Survey.create({
+    const newSurvey = await Survey.create({
+      ...originalSurvey,
+      status: "editting",
       id: uuidv4(),
       deployId: uuidv4(),
-      userId: originId,
-      title: title,
-      description: description,
-      questions: questions,
-      branching: branching,
-      counter: counter,
-      selectedIndex: 0,
     });
-    res.status(200).send(gr(result, "Create Copied Survey Success"));
+
+    res.status(200).send(gr(newSurvey, "Create Copied Survey Success"));
   } catch (err) {
     console.log("Failed to Create Copied Survey", err);
     res.status(500).send(gc("Server Error"));
