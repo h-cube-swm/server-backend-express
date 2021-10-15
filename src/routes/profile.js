@@ -27,14 +27,8 @@ const checkBodyPut = [
   validatorErrorChecker,
 ];
 
-router.get("/", async (req, res) => {
+router.get("/", checkLogin, async (req, res) => {
   try {
-    // 해당 구문도 여러 군데에서 쓰이므로 미들웨어로 빼는 것 고려할 예정
-    if (!req.user || !req.user.id) {
-      res.status(400).send(gc("Not logged in."));
-      return;
-    }
-
     const userId = req.user.id;
     const profile = await Profile.findOne({ userId }, "-_id").lean();
     if (!profile) {
@@ -48,14 +42,8 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", checkBody, async (req, res) => {
+router.post("/", checkLogin, checkBody, async (req, res) => {
   try {
-    // 해당 구문도 여러 군데에서 쓰이므로 미들웨어로 빼는 것 고려할 예정
-    if (!req.user || !req.user.id) {
-      res.status(400).send(gc("Not logged in."));
-      return;
-    }
-
     const userId = req.user.id;
     const profile = await Profile.findOne({ userId }).lean();
     if (profile) {
