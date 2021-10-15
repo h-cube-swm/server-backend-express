@@ -1,5 +1,6 @@
 const express = require("express");
-const { check, validationResult } = require("express-validator");
+const { check } = require("express-validator");
+const { validatorErrorChecker } = require("../utils/validator");
 const { getResponse: gr, getComment: gc } = require("../utils/response");
 const { checkUUID } = require("../utils/checkUUID");
 const { sendEmail } = require("../utils/sesSendEmail");
@@ -14,7 +15,10 @@ const IS_EDITTING = {
 
 const router = express.Router();
 
-const checkEmail = check("email", "Please include a valid email").isEmail();
+const checkEmail = [
+  check("email", "Please include a valid email").isEmail(),
+  validatorErrorChecker,
+];
 
 router.post("/", async (req, res) => {
   try {
@@ -109,13 +113,6 @@ router.put("/:id/end", async (req, res) => {
 });
 
 router.put("/:id/emails", checkEmail, async (req, res) => {
-  const errors = validationResult(req);
-
-  if (!errors.isEmpty()) {
-    res.status(400).send(gc("not a correct email (example@example.com)"));
-    return;
-  }
-
   try {
     const { id } = req.params;
     const { email } = req.body;
