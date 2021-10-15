@@ -2,6 +2,7 @@ const express = require("express");
 const { check } = require("express-validator");
 const { validatorErrorChecker } = require("../utils/validator");
 const { getResponse: gr, getComment: gc } = require("../utils/response");
+const { checkLogin } = require("../utils/checkLogin");
 const { checkUUID } = require("../utils/checkUUID");
 const { sendEmail } = require("../utils/sesSendEmail");
 const { v4: uuidv4 } = require("uuid");
@@ -180,15 +181,10 @@ router.post("/:deployId/responses", async (req, res) => {
 });
 
 // Copy Survey
-router.post("/copy", async (req, res) => {
+router.post("/copy", checkLogin, async (req, res) => {
   try {
     if (!req.body.sid) {
       res.status(400).send(gc("sid field is required"));
-      return;
-    }
-
-    if (!req.user || !req.user.id) {
-      res.status(400).send(gc("Not logged in."));
       return;
     }
 
