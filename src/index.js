@@ -22,7 +22,7 @@ async function checkJWT(req, _, next) {
     const verified = await verify(token);
     const payload = JSON.parse(verified.payload.toString());
     req.user = payload;
-  } catch (err) { }
+  } catch (err) {}
   next();
 }
 
@@ -44,7 +44,7 @@ async function main() {
   app.use(bodyParser.urlencoded({ extended: true }));
   app.use(bodyParser.json());
   app.use(checkJWT);
-  app.use('/admin', require('./routes/admin')(connection));
+  app.use("/admin", require("./routes/admin")(connection));
 
   // Endpoint
   app.get("/", (req, res) => {
@@ -54,6 +54,7 @@ async function main() {
   // Routers
   app.use("/users", require("./routes/user"));
   app.use("/surveys", require("./routes/survey"));
+  app.use("/profiles", require("./routes/profile"));
 
   // 404
   app.all("*", (req, res) => {
