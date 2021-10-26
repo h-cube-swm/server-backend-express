@@ -9,9 +9,13 @@ const { v4: uuidv4 } = require("uuid");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
 
-const NOT_DELTED = { status: { $ne: "deleted" } };
-const IS_EDITTING = {
-  $or: [{ status: "editting" }, { status: { $exists: false } }],
+const NOT_DELETED = { status: { $ne: "deleted" } };
+const IS_EDITING = {
+  $or: [
+    { status: "editing" },
+    { status: "editting" },
+    { status: { $exists: false } },
+  ],
 };
 
 const router = express.Router();
@@ -27,7 +31,7 @@ router.post("/", async (req, res) => {
       id: uuidv4(),
       deployId: uuidv4(),
       userId: req.user.id,
-      status: "editting",
+      status: "editing",
     });
     res.status(201).send(gr(result, "Survey Create Success"));
   } catch (err) {
@@ -73,7 +77,7 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const update = { ...req.body };
     const result = await Survey.findOneAndUpdate(
-      { id, ...IS_EDITTING },
+      { id, ...IS_EDITING },
       update
     ).exec();
     if (!result) {
@@ -91,7 +95,7 @@ router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const update = { status: "deleted" };
-    await Survey.findOneAndUpdate({ id, ...NOT_DELTED }, update).exec();
+    await Survey.findOneAndUpdate({ id, ...NOT_DELETED }, update).exec();
     res.status(200).send(gc("Survey Delete Success"));
   } catch (err) {
     console.log("Failed to Delete Survey", err);
@@ -103,7 +107,7 @@ router.put("/:id/end", async (req, res) => {
   try {
     const { id } = req.params;
     const originalSurvey = await Survey.findOneAndUpdate(
-      { id, ...NOT_DELTED },
+      { id, ...NOT_DELETED },
       { status: "published", userId: req.user.id }
     ).exec();
     res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
@@ -118,7 +122,7 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
     const { id } = req.params;
     const { email } = req.body;
     const before = await Survey.findOneAndUpdate(
-      { id, ...NOT_DELTED },
+      { id, ...NOT_DELETED },
       { email },
       { new: true }
     ).exec();
@@ -134,6 +138,7 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
   }
 });
 
+// 응답 목록 받아오기
 router.get("/:id/responses", async (req, res) => {
   try {
     const { id } = req.params;
@@ -148,7 +153,7 @@ router.get("/:id/responses", async (req, res) => {
       return;
     }
 
-    const survey = await Survey.findOne({ id, ...NOT_DELTED });
+    const survey = await Survey.findOne({ id, ...NOT_DELETED });
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
       return;
@@ -165,7 +170,7 @@ router.get("/:id/responses", async (req, res) => {
 router.post("/:deployId/responses", async (req, res) => {
   try {
     const { deployId } = req.params;
-    const survey = await Survey.findOne({ deployId, ...NOT_DELTED });
+    const survey = await Survey.findOne({ deployId, ...NOT_DELETED });
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
       return;
@@ -195,7 +200,7 @@ router.post("/copy", checkLogin, async (req, res) => {
       {
         userId,
         id,
-        ...NOT_DELTED,
+        ...NOT_DELETED,
       },
       "-_id"
     ).lean();
@@ -207,7 +212,7 @@ router.post("/copy", checkLogin, async (req, res) => {
 
     const newSurvey = await Survey.create({
       ...originalSurvey,
-      status: "editting",
+      status: "editing",
       id: uuidv4(),
       deployId: uuidv4(),
     });
