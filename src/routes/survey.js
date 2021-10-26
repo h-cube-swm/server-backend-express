@@ -164,6 +164,8 @@ router.put("/:id/end", async (req, res) => {
       { id, ...NOT_DELETED },
       { status: STATUS.PUBLISHED, userId: req.user.id }
     ).exec();
+    if (!originalSurvey) return res.status(404).send(gc("Cannot find survey"));
+
     res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
   } catch (err) {
     console.log("Failed to End Survey", err);
