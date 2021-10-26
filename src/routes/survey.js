@@ -9,7 +9,14 @@ const { v4: uuidv4 } = require("uuid");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
 
-const NOT_DELETED = { status: { $ne: "deleted" } };
+const STATUS = {
+  EDITING: "editing",
+  PUBLISHED: "published",
+  PAUSED: "paused",
+  FINISHED: "finished",
+  DELETED: "deleted",
+};
+const NOT_DELETED = { status: { $ne: STATUS.DELETED } };
 const IS_EDITING = {
   $or: [
     { status: "editing" },
@@ -40,6 +47,50 @@ router.post("/", async (req, res) => {
   }
 });
 
+// response 용 get
+// 여기서 따로 response.js를 만들어주지 않는 이유는 결국 해당 엔드포인트에서 반환하는 것은 survey 객체이기 때문.
+router.get("/responses/:deployId", async (req, res) => {
+  try {
+    const { deployId } = req.params;
+
+    if (!(await checkUUID(deployId))) {
+      res
+        .status(400)
+        .send(
+          gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)")
+        );
+      return;
+    }
+
+    const survey = await Survey.findOne(
+      {
+        deployId,
+        ...NOT_DELETED,
+      },
+      "-_id title questions status branching themeColor"
+    ).lean();
+
+    if (!survey) {
+      res.status(404).send(gc("Cannot find survey"));
+      return;
+    }
+
+    // 해당 부분 추후 캐시 서버로 deployId: status 데이터만 저장하여 DB 조회를 줄일 수 있을 것으로 보임
+    const status = survey.status;
+    if (status === STATUS.EDITING || status == "editting")
+      return res.status(400).send(gr({ status }, "Survey is now editing"));
+    if (status === STATUS.PAUSED)
+      return res.status(400).send(gr({ status }, "Survey is now paused"));
+    if (status === STATUS.FINISHED)
+      return res.status(400).send(gr({ status }, "Survey is now finished"));
+
+    res.status(200).send(gr(survey, "Successfully got survey"));
+  } catch (err) {
+    console.log("Failed to Get Survey", err);
+    res.status(500).send(gc("Server Error"));
+  }
+});
+
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -52,10 +103,13 @@ router.get("/:id", async (req, res) => {
 
   // ToDo: 여기 수정할 것. 원래는 엔드포인트를 나눠야 하는데, 하나의 엔드포인트를 사용하고 있다.
   // 해당 부분 {id}, {deployId}의 객체 형태가 다른 것 같아서, 추후 확인히 필요해 보임
-  const survey = await Survey.findOne({
-    $or: [{ id }, { deployId: id }],
-    ...NOT_DELTED,
-  });
+  const survey = await Survey.findOne(
+    {
+      $or: [{ id }, { deployId: id }],
+      ...NOT_DELETED,
+    },
+    "-_id"
+  ).lean();
 
   if (!survey) {
     res.status(404).send(gc("Cannot find survey"));
@@ -94,7 +148,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const update = { status: "deleted" };
+    const update = { status: STATUS.DELETED };
     await Survey.findOneAndUpdate({ id, ...NOT_DELETED }, update).exec();
     res.status(200).send(gc("Survey Delete Success"));
   } catch (err) {
@@ -108,7 +162,7 @@ router.put("/:id/end", async (req, res) => {
     const { id } = req.params;
     const originalSurvey = await Survey.findOneAndUpdate(
       { id, ...NOT_DELETED },
-      { status: "published", userId: req.user.id }
+      { status: STATUS.PUBLISHED, userId: req.user.id }
     ).exec();
     res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
   } catch (err) {
