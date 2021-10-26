@@ -17,6 +17,7 @@ const STATUS = {
   DELETED: "deleted",
 };
 const NOT_DELETED = { status: { $ne: STATUS.DELETED } };
+const NOT_FINISHED = { status: { $ne: STATUS.FINISHED } };
 const IS_EDITING = {
   $or: [
     { status: "editing" },
@@ -173,6 +174,39 @@ router.put("/:id/end", async (req, res) => {
   }
 });
 
+// 이것은 설문 상태 수정 api로써 추후 위의 end 엔드포인트도 해당 엔드포인트에 합칠 수 있을 것으로 보임
+// 하지만 우선은 합치지 않는 이유는 위의 엔드포인트 경우에는 originalSurvey를 반환해줘야 하지만, 아래 경우는 필요 없기 때문이다.
+router.put("/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (
+      !status ||
+      !(
+        status === STATUS.PAUSED ||
+        status === STATUS.FINISHED ||
+        status === STATUS.PUBLISHED
+      )
+    )
+      return res.status(400).send(gc("Illegal Argument"));
+
+    const originalSurvey = await Survey.findOneAndUpdate(
+      { id, ...NOT_DELETED, ...NOT_FINISHED },
+      { status: status, userId: req.user.id }
+    ).exec();
+    if (!originalSurvey)
+      return res
+        .status(404)
+        .send(gc("Cannot Update survey(Deleted or Finished)"));
+
+    res.status(200).send(gc(`Survey Status Update to ${status} Success`));
+  } catch (err) {
+    console.log("Failed to Change Survey Status", err);
+    res.status(500).send(gc("Server Error"));
+  }
+});
+
+// 이메일 업데이트
 router.put("/:id/emails", checkEmail, async (req, res) => {
   try {
     const { id } = req.params;
