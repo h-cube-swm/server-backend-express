@@ -10,7 +10,7 @@ router.get("/surveys", checkLogin, async (req, res) => {
   try {
     const surveys = await Survey.find(
       { userId: req.user.id, status: { $ne: "deleted" } },
-      { questions: 0 }
+      "-_id title id deployId createdAt updatedAt status"
     ).exec();
     res.status(200).send(gr(surveys, "Get All Survey Succeess"));
   } catch (err) {
