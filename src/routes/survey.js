@@ -33,6 +33,12 @@ const checkEmail = [
   validatorErrorChecker,
 ];
 
+function checkStatus(status) {
+  if ([STATUS.PAUSED, STATUS.PUBLISHED, STATUS.FINISHED].includes(status))
+    return true;
+  return false;
+}
+
 router.post("/", async (req, res) => {
   try {
     const result = await Survey.create({
@@ -180,14 +186,7 @@ router.put("/:id/status", async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    if (
-      !status ||
-      !(
-        status === STATUS.PAUSED ||
-        status === STATUS.FINISHED ||
-        status === STATUS.PUBLISHED
-      )
-    )
+    if (!checkStatus(status))
       return res.status(400).send(gc("Illegal Argument"));
 
     const originalSurvey = await Survey.findOneAndUpdate(
