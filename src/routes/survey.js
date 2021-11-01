@@ -12,18 +12,14 @@ const Response = require("../models/response");
 const STATUS = {
   EDITING: "editing",
   PUBLISHED: "published",
-  PAUSED: "paused",
   FINISHED: "finished",
   DELETED: "deleted",
 };
+
 const NOT_DELETED = { status: { $ne: STATUS.DELETED } };
 const NOT_FINISHED = { status: { $ne: STATUS.FINISHED } };
 const IS_EDITING = {
-  $or: [
-    { status: "editing" },
-    { status: "editting" },
-    { status: { $exists: false } },
-  ],
+  $or: [{ status: STATUS.EDITING }, { status: { $exists: false } }],
 };
 
 const router = express.Router();
@@ -33,10 +29,8 @@ const checkEmail = [
   validatorErrorChecker,
 ];
 
-function checkStatus(status) {
-  if ([STATUS.PAUSED, STATUS.PUBLISHED, STATUS.FINISHED].includes(status))
-    return true;
-  return false;
+function validateStatus(status) {
+  return Object.values(STATUS).includes(status);
 }
 
 router.post("/", async (req, res) => {
@@ -45,7 +39,7 @@ router.post("/", async (req, res) => {
       id: uuidv4(),
       deployId: uuidv4(),
       userId: req.user.id,
-      status: "editing",
+      status: STATUS.EDITING,
     });
     res.status(201).send(gr(result, "Survey Create Success"));
   } catch (err) {
@@ -54,13 +48,12 @@ router.post("/", async (req, res) => {
   }
 });
 
-// response 용 get
-// 여기서 따로 response.js를 만들어주지 않는 이유는 결국 해당 엔드포인트에서 반환하는 것은 survey 객체이기 때문.
-router.get("/responses/:deployId", async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const { deployId } = req.params;
+    const { id } = req.params;
+    const { mode } = req.query;
 
-    if (!(await checkUUID(deployId))) {
+    if (!(await checkUUID(id))) {
       res
         .status(400)
         .send(
@@ -69,68 +62,37 @@ router.get("/responses/:deployId", async (req, res) => {
       return;
     }
 
-    const survey = await Survey.findOne(
-      {
-        deployId,
-        ...NOT_DELETED,
-      },
-      "-_id title questions status branching themeColor"
-    ).lean();
+    let columns = "-_id";
+    let condition = { ...NOT_DELETED };
+    if (mode === "edit") {
+      condition = {
+        ...condition,
+        id,
+      };
+    } else if (mode === "response") {
+      columns = "-_id title questions status branching themeColor deployId";
+      condition = {
+        ...condition,
+        deployId: id,
+        status: { $nin: [STATUS.EDITING, STATUS.FINISHED] },
+      };
+    } else {
+      res.status(400).send(gc("Invalid query string : " + mode));
+      return;
+    }
+
+    const survey = await Survey.findOne(condition, columns).lean();
 
     if (!survey) {
       res.status(404).send(gc("Cannot find survey"));
       return;
     }
 
-    // 해당 부분 추후 캐시 서버로 deployId: status 데이터만 저장하여 DB 조회를 줄일 수 있을 것으로 보임
-    const status = survey.status;
-    if (status === STATUS.EDITING || status == "editting")
-      return res.status(400).send(gr({ status }, "Survey is now editing"));
-    if (status === STATUS.PAUSED)
-      return res.status(400).send(gr({ status }, "Survey is now paused"));
-    if (status === STATUS.FINISHED)
-      return res.status(400).send(gr({ status }, "Survey is now finished"));
-
     res.status(200).send(gr(survey, "Successfully got survey"));
-  } catch (err) {
-    console.log("Failed to Get Survey", err);
+  } catch {
+    console.log("Failed to get survey", err);
     res.status(500).send(gc("Server Error"));
   }
-});
-
-router.get("/:id", async (req, res) => {
-  const { id } = req.params;
-
-  if (!(await checkUUID(id))) {
-    res
-      .status(400)
-      .send(gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"));
-    return;
-  }
-
-  // ToDo: 여기 수정할 것. 원래는 엔드포인트를 나눠야 하는데, 하나의 엔드포인트를 사용하고 있다.
-  // 해당 부분 {id}, {deployId}의 객체 형태가 다른 것 같아서, 추후 확인히 필요해 보임
-  const survey = await Survey.findOne(
-    {
-      $or: [{ id }, { deployId: id }],
-      ...NOT_DELETED,
-    },
-    "-_id"
-  ).lean();
-
-  if (!survey) {
-    res.status(404).send(gc("Cannot find survey"));
-    return;
-  }
-
-  if (survey.deployId === id) {
-    // 이렇게 된다는 것은 응답용으로 요청되었다는 의미이다. 이 경우 id field가 노출되면 안 된다.
-    // 그러므로 id field 를 가린다.
-    // 해당 부분 {deployId}의 형태에서는 정상적으로 데이터 원본이 수정이 안되고 동작하지만, 확인이 필요해보임
-    survey.id = "";
-  }
-
-  res.status(200).send(gr(survey, "Successfully got survey"));
 });
 
 router.put("/:id", async (req, res) => {
@@ -186,7 +148,7 @@ router.put("/:id/status", async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    if (!checkStatus(status))
+    if (!validateStatus(status))
       return res.status(400).send(gc("Illegal Argument"));
 
     const originalSurvey = await Survey.findOneAndUpdate(
@@ -301,7 +263,7 @@ router.post("/copy", checkLogin, async (req, res) => {
 
     const newSurvey = await Survey.create({
       ...originalSurvey,
-      status: "editing",
+      status: STATUS.EDITING,
       id: uuidv4(),
       deployId: uuidv4(),
     });
