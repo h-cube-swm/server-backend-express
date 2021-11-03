@@ -16,6 +16,8 @@ const surveySchema = mongoose.Schema(
     counter: Number,
     selectedIndex: Number,
     email: String,
+    isDrawUsed: { type: Boolean, default: false },
+    drawNumber: Number,
   },
   { strict: false, timestamps: true }
 );
