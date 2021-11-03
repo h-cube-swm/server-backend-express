@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 const drawSchema = mongoose.Schema(
   {
     id: String, // survey id
-    isDraw: { type: Boolean, default: false },
+    isEnabled: { type: Boolean, default: false },
     number: Number,
     result: Array,
   },
