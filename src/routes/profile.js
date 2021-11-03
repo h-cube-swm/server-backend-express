@@ -1,6 +1,6 @@
 const express = require("express");
 const Profile = require("../models/profile");
-const { check, oneOf, validationResult } = require("express-validator");
+const { check, oneOf } = require("express-validator");
 const { validatorErrorChecker } = require("../utils/validator");
 const { checkLogin } = require("../utils/checkLogin");
 const { getResponse: gr, getComment: gc } = require("../utils/response");
