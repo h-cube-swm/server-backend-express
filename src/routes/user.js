@@ -1,19 +1,16 @@
 const express = require("express");
 const { getResponse: gr, getComment: gc } = require("../utils/response");
+const { checkLogin } = require("../utils/checkLogin");
 const User = require("../models/user");
 const Survey = require("../models/survey");
 
 const router = express.Router();
 
-router.get("/surveys", async (req, res) => {
-  if (!req.user || !req.user.id) {
-    res.status(400).send(gc("Not logged in."));
-    return;
-  }
+router.get("/surveys", checkLogin, async (req, res) => {
   try {
     const surveys = await Survey.find(
       { userId: req.user.id, status: { $ne: "deleted" } },
-      { questions: 0 }
+      "-_id title id deployId createdAt updatedAt status"
     ).exec();
     res.status(200).send(gr(surveys, "Get All Survey Succeess"));
   } catch (err) {

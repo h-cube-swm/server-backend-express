@@ -1,20 +1,37 @@
 const express = require("express");
-const { check, validationResult } = require("express-validator");
+const { check } = require("express-validator");
+const { validatorErrorChecker } = require("../utils/validator");
 const { getResponse: gr, getComment: gc } = require("../utils/response");
+const { checkLogin } = require("../utils/checkLogin");
 const { checkUUID } = require("../utils/checkUUID");
 const { sendEmail } = require("../utils/sesSendEmail");
 const { v4: uuidv4 } = require("uuid");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
 
-const NOT_DELTED = { status: { $ne: "deleted" } };
-const IS_EDITTING = {
-  $or: [{ status: "editting" }, { status: { $exists: false } }],
+const STATUS = {
+  EDITING: "editing",
+  PUBLISHED: "published",
+  FINISHED: "finished",
+  DELETED: "deleted",
+};
+
+const NOT_DELETED = { status: { $ne: STATUS.DELETED } };
+const NOT_FINISHED = { status: { $ne: STATUS.FINISHED } };
+const IS_EDITING = {
+  $or: [{ status: STATUS.EDITING }, { status: { $exists: false } }],
 };
 
 const router = express.Router();
 
-const checkEmail = check("email", "Please include a valid email").isEmail();
+const checkEmail = [
+  check("email", "Please include a valid email").isEmail(),
+  validatorErrorChecker,
+];
+
+function validateStatus(status) {
+  return Object.values(STATUS).includes(status);
+}
 
 router.post("/", async (req, res) => {
   try {
@@ -22,7 +39,7 @@ router.post("/", async (req, res) => {
       id: uuidv4(),
       deployId: uuidv4(),
       userId: req.user.id,
-      status: "editting",
+      status: STATUS.EDITING,
     });
     res.status(201).send(gr(result, "Survey Create Success"));
   } catch (err) {
@@ -32,35 +49,50 @@ router.post("/", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const { mode } = req.query;
 
-  if (!(await checkUUID(id))) {
-    res
-      .status(400)
-      .send(gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"));
-    return;
+    if (!(await checkUUID(id))) {
+      res
+        .status(400)
+        .send(
+          gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)")
+        );
+      return;
+    }
+
+    let columns = "-_id";
+    let condition = { ...NOT_DELETED };
+    if (mode === "edit") {
+      condition = {
+        ...condition,
+        id,
+      };
+    } else if (mode === "response") {
+      columns = "-_id title questions status branching themeColor deployId";
+      condition = {
+        ...condition,
+        deployId: id,
+        status: { $nin: [STATUS.EDITING, STATUS.FINISHED] },
+      };
+    } else {
+      res.status(400).send(gc("Invalid query string : " + mode));
+      return;
+    }
+
+    const survey = await Survey.findOne(condition, columns).lean();
+
+    if (!survey) {
+      res.status(404).send(gc("Cannot find survey"));
+      return;
+    }
+
+    res.status(200).send(gr(survey, "Successfully got survey"));
+  } catch {
+    console.log("Failed to get survey", err);
+    res.status(500).send(gc("Server Error"));
   }
-
-  // ToDo: 여기 수정할 것. 원래는 엔드포인트를 나눠야 하는데, 하나의 엔드포인트를 사용하고 있다.
-  // 해당 부분 {id}, {deployId}의 객체 형태가 다른 것 같아서, 추후 확인히 필요해 보임
-  const survey = await Survey.findOne({
-    $or: [{ id }, { deployId: id }],
-    ...NOT_DELTED,
-  });
-
-  if (!survey) {
-    res.status(404).send(gc("Cannot find survey"));
-    return;
-  }
-
-  if (survey.deployId === id) {
-    // 이렇게 된다는 것은 응답용으로 요청되었다는 의미이다. 이 경우 id field가 노출되면 안 된다.
-    // 그러므로 id field 를 가린다.
-    // 해당 부분 {deployId}의 형태에서는 정상적으로 데이터 원본이 수정이 안되고 동작하지만, 확인이 필요해보임
-    survey.id = "";
-  }
-
-  res.status(200).send(gr(survey, "Successfully got survey"));
 });
 
 router.put("/:id", async (req, res) => {
@@ -68,7 +100,7 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const update = { ...req.body };
     const result = await Survey.findOneAndUpdate(
-      { id, ...IS_EDITTING },
+      { id, ...IS_EDITING },
       update
     ).exec();
     if (!result) {
@@ -85,8 +117,8 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const update = { status: "deleted" };
-    await Survey.findOneAndUpdate({ id, ...NOT_DELTED }, update).exec();
+    const update = { status: STATUS.DELETED };
+    await Survey.findOneAndUpdate({ id, ...NOT_DELETED }, update).exec();
     res.status(200).send(gc("Survey Delete Success"));
   } catch (err) {
     console.log("Failed to Delete Survey", err);
@@ -98,9 +130,11 @@ router.put("/:id/end", async (req, res) => {
   try {
     const { id } = req.params;
     const originalSurvey = await Survey.findOneAndUpdate(
-      { id, ...NOT_DELTED },
-      { status: "published", userId: req.user.id }
+      { id, ...NOT_DELETED },
+      { status: STATUS.PUBLISHED, userId: req.user.id }
     ).exec();
+    if (!originalSurvey) return res.status(404).send(gc("Cannot find survey"));
+
     res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
   } catch (err) {
     console.log("Failed to End Survey", err);
@@ -108,19 +142,38 @@ router.put("/:id/end", async (req, res) => {
   }
 });
 
-router.put("/:id/emails", checkEmail, async (req, res) => {
-  const errors = validationResult(req);
+// 이것은 설문 상태 수정 api로써 추후 위의 end 엔드포인트도 해당 엔드포인트에 합칠 수 있을 것으로 보임
+// 하지만 우선은 합치지 않는 이유는 위의 엔드포인트 경우에는 originalSurvey를 반환해줘야 하지만, 아래 경우는 필요 없기 때문이다.
+router.put("/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!validateStatus(status))
+      return res.status(400).send(gc("Illegal Argument"));
 
-  if (!errors.isEmpty()) {
-    res.status(400).send(gc("not a correct email (example@example.com)"));
-    return;
+    const originalSurvey = await Survey.findOneAndUpdate(
+      { id, ...NOT_DELETED, ...NOT_FINISHED },
+      { status: status, userId: req.user.id }
+    ).exec();
+    if (!originalSurvey)
+      return res
+        .status(404)
+        .send(gc("Cannot Update survey(Deleted or Finished)"));
+
+    res.status(200).send(gc(`Survey Status Update to ${status} Success`));
+  } catch (err) {
+    console.log("Failed to Change Survey Status", err);
+    res.status(500).send(gc("Server Error"));
   }
+});
 
+// 이메일 업데이트
+router.put("/:id/emails", checkEmail, async (req, res) => {
   try {
     const { id } = req.params;
     const { email } = req.body;
     const before = await Survey.findOneAndUpdate(
-      { id, ...NOT_DELTED },
+      { id, ...NOT_DELETED },
       { email },
       { new: true }
     ).exec();
@@ -136,6 +189,7 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
   }
 });
 
+// 응답 목록 받아오기
 router.get("/:id/responses", async (req, res) => {
   try {
     const { id } = req.params;
@@ -150,7 +204,7 @@ router.get("/:id/responses", async (req, res) => {
       return;
     }
 
-    const survey = await Survey.findOne({ id, ...NOT_DELTED });
+    const survey = await Survey.findOne({ id, ...NOT_DELETED });
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
       return;
@@ -167,7 +221,7 @@ router.get("/:id/responses", async (req, res) => {
 router.post("/:deployId/responses", async (req, res) => {
   try {
     const { deployId } = req.params;
-    const survey = await Survey.findOne({ deployId, ...NOT_DELTED });
+    const survey = await Survey.findOne({ deployId, ...NOT_DELETED });
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
       return;
@@ -183,15 +237,10 @@ router.post("/:deployId/responses", async (req, res) => {
 });
 
 // Copy Survey
-router.post("/copy", async (req, res) => {
+router.post("/copy", checkLogin, async (req, res) => {
   try {
     if (!req.body.sid) {
       res.status(400).send(gc("sid field is required"));
-      return;
-    }
-
-    if (!req.user || !req.user.id) {
-      res.status(400).send(gc("Not logged in."));
       return;
     }
 
@@ -202,7 +251,7 @@ router.post("/copy", async (req, res) => {
       {
         userId,
         id,
-        ...NOT_DELTED,
+        ...NOT_DELETED,
       },
       "-_id"
     ).lean();
@@ -214,7 +263,7 @@ router.post("/copy", async (req, res) => {
 
     const newSurvey = await Survey.create({
       ...originalSurvey,
-      status: "editting",
+      status: STATUS.EDITING,
       id: uuidv4(),
       deployId: uuidv4(),
     });
