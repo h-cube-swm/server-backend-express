@@ -55,6 +55,7 @@ async function main() {
   app.use("/users", require("./routes/user"));
   app.use("/surveys", require("./routes/survey"));
   app.use("/profiles", require("./routes/profile"));
+  app.use("/draws", require("./routes/draw"));
 
   // 404
   app.all("*", (req, res) => {

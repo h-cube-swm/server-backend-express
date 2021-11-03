@@ -74,14 +74,15 @@ router.get("/:id", async (req, res) => {
       condition = {
         ...condition,
         deployId: id,
-        status: { $nin: [STATUS.EDITING, STATUS.FINISHED] },
+        // status: { $nin: [STATUS.EDITING, STATUS.FINISHED] },
       };
     } else {
       res.status(400).send(gc("Invalid query string : " + mode));
       return;
     }
 
-    const survey = await Survey.findOne(condition, columns).lean();
+    let survey = await Survey.findOne(condition, columns).lean();
+    // Todo: 종료된 설문 중 유출이 되면 안되는 경우에 처리해줄 것
 
     if (!survey) {
       res.status(404).send(gc("Cannot find survey"));
