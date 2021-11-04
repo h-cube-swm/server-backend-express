@@ -70,7 +70,8 @@ router.get("/:id", async (req, res) => {
         id,
       };
     } else if (mode === "response") {
-      columns = "-_id title questions status branching themeColor deployId";
+      columns =
+        "-_id title description questions status branching themeColor deployId";
       condition = {
         ...condition,
         deployId: id,
