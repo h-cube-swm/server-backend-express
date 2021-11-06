@@ -6,8 +6,14 @@ const { checkLogin } = require("../utils/checkLogin");
 const { checkUUID } = require("../utils/checkUUID");
 const { sendEmail } = require("../utils/sesSendEmail");
 const { v4: uuidv4 } = require("uuid");
+const axios = require("axios");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
+
+// draw api 엔드포인트
+const DRAW_API = process.env.STAGE
+  ? "https://api.dev.the-form.io/draws"
+  : "https://api.the-form.io/draws";
 
 const STATUS = {
   EDITING: "editing",
@@ -41,7 +47,7 @@ router.post("/", async (req, res) => {
       userId: req.user.id,
       status: STATUS.EDITING,
     });
-    res.status(201).send(gr(result, "Survey Create Success"));
+    res.status(201).send(gr(result, "Survey create success"));
   } catch (err) {
     console.log("Fail to Create Link", err);
     res.status(500).send(gc("Server Error"));
@@ -90,6 +96,11 @@ router.get("/:id", async (req, res) => {
       return;
     }
 
+    // draw api 호출
+    const response = await axios.get(`${DRAW_API}?sid=${id}`);
+    const draw = response.data.result;
+    survey = { ...survey, draw };
+
     res.status(200).send(gr(survey, "Successfully got survey"));
   } catch {
     console.log("Failed to get survey", err);
@@ -100,7 +111,8 @@ router.get("/:id", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const update = { ...req.body };
+    const { draw, ...survey } = req.body;
+    const update = { ...survey };
     const result = await Survey.findOneAndUpdate(
       { id, ...IS_EDITING },
       update
@@ -109,9 +121,15 @@ router.put("/:id", async (req, res) => {
       res.status(404).send(gc("Cannot find survey"));
       return;
     }
-    res.status(200).send(gc("Survey Update Success"));
+
+    // draw api 호출
+    if (draw && "isEnabled" in draw) {
+      await axios.put(DRAW_API, { id, ...draw });
+    }
+
+    res.status(200).send(gc("Survey update success"));
   } catch (err) {
-    console.log("Failed to Update Survey", err);
+    console.log("Failed to Update Survey : ", err.message);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -121,7 +139,7 @@ router.delete("/:id", async (req, res) => {
     const { id } = req.params;
     const update = { status: STATUS.DELETED };
     await Survey.findOneAndUpdate({ id, ...NOT_DELETED }, update).exec();
-    res.status(200).send(gc("Survey Delete Success"));
+    res.status(200).send(gc("Survey delete success"));
   } catch (err) {
     console.log("Failed to Delete Survey", err);
     res.status(500).send(gc("Server Error"));
@@ -137,7 +155,7 @@ router.put("/:id/end", async (req, res) => {
     ).exec();
     if (!originalSurvey) return res.status(404).send(gc("Cannot find survey"));
 
-    res.status(200).send(gr(originalSurvey, "Survey End Update Success"));
+    res.status(200).send(gr(originalSurvey, "Survey end update success"));
   } catch (err) {
     console.log("Failed to End Survey", err);
     res.status(500).send(gc("Server Error"));
@@ -160,11 +178,11 @@ router.put("/:id/status", async (req, res) => {
     if (!originalSurvey)
       return res
         .status(404)
-        .send(gc("Cannot Update survey(Deleted or Finished)"));
+        .send(gc("Cannot update survey(Deleted or Finished)"));
 
-    res.status(200).send(gc(`Survey Status Update to ${status} Success`));
+    res.status(200).send(gc(`Survey status update to ${status} success`));
   } catch (err) {
-    console.log("Failed to Change Survey Status", err);
+    console.log("Failed to change survey status", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -181,10 +199,10 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
     ).exec();
     const result = await sendEmail(email, before.title, id, before.deployId);
     if (!result) {
-      res.status(400).send(gc("Email Send Fail"));
+      res.status(400).send(gc("Email send fail"));
       return;
     }
-    res.status(200).send(gc("Email Update and Send Success"));
+    res.status(200).send(gc("Email update and send success"));
   } catch (err) {
     console.log("Failed to Update Email", err);
     res.status(500).send(gc("Server Error"));
@@ -213,7 +231,7 @@ router.get("/:id/responses", async (req, res) => {
     }
     const responses = await Response.find({ deployId: survey.deployId });
     const result = { survey, responses };
-    res.status(200).send(gr(result, "Get Responses Success"));
+    res.status(200).send(gr(result, "Get responses success"));
   } catch (err) {
     console.log("Failed to Get Response", err);
     res.status(500).send(gc("Server Error"));
@@ -231,7 +249,7 @@ router.post("/:deployId/responses", async (req, res) => {
     const response = { ...req.body, deployId };
     response.userId = req.user.id;
     await Response.create(response);
-    res.status(201).send(gc("Create Response Success"));
+    res.status(201).send(gc("Create response success"));
   } catch (err) {
     console.log("Failed to Create Response", err);
     res.status(500).send(gc("Server Error"));
@@ -270,7 +288,7 @@ router.post("/copy", checkLogin, async (req, res) => {
       deployId: uuidv4(),
     });
 
-    res.status(200).send(gr(newSurvey, "Create Copied Survey Success"));
+    res.status(200).send(gr(newSurvey, "Create copied survey success"));
   } catch (err) {
     console.log("Failed to Create Copied Survey", err);
     res.status(500).send(gc("Server Error"));
