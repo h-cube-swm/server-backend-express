@@ -7,6 +7,7 @@ const { checkUUID } = require("../utils/checkUUID");
 const { sendEmail } = require("../utils/sesSendEmail");
 const { v4: uuidv4 } = require("uuid");
 const axios = require("axios");
+const crypto = require("crypto");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
 
@@ -23,7 +24,7 @@ const STATUS = {
 };
 
 const NOT_DELETED = { status: { $ne: STATUS.DELETED } };
-const NOT_FINISHED = { status: { $ne: STATUS.FINISHED } };
+const NOT_FINISHED = { status: { $nin: [STATUS.DELETED, STATUS.FINISHED] } };
 const IS_EDITING = {
   $or: [{ status: STATUS.EDITING }, { status: { $exists: false } }],
 };
@@ -49,7 +50,7 @@ router.post("/", async (req, res) => {
     });
     res.status(201).send(gr(result, "Survey create success"));
   } catch (err) {
-    console.log("Fail to Create Link", err);
+    console.log("Fail to create link", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -71,17 +72,13 @@ router.get("/:id", async (req, res) => {
     let columns = "-_id";
     let condition = { ...NOT_DELETED };
     if (mode === "edit") {
-      condition = {
-        ...condition,
-        id,
-      };
+      condition = { ...condition, id };
     } else if (mode === "response") {
       columns =
         "-_id title description questions status branching themeColor deployId";
       condition = {
         ...condition,
         deployId: id,
-        // status: { $nin: [STATUS.EDITING, STATUS.FINISHED] },
       };
     } else {
       res.status(400).send(gc("Invalid query string : " + mode));
@@ -89,14 +86,14 @@ router.get("/:id", async (req, res) => {
     }
 
     let survey = await Survey.findOne(condition, columns).lean();
-    // Todo: 종료된 설문 중 유출이 되면 안되는 경우에 처리해줄 것
+    // Todo: 만약 종료된 설문이 유출이 되면 안되는 경우가 있다면 이 부분을 처리해줄 것
 
     if (!survey) {
       res.status(404).send(gc("Cannot find survey"));
       return;
     }
 
-    // draw api 호출
+    // Draw api 호출
     const response = await axios.get(`${DRAW_API}?sid=${id}`);
     const draw = response.data.result;
     survey = { ...survey, draw };
@@ -129,7 +126,7 @@ router.put("/:id", async (req, res) => {
 
     res.status(200).send(gc("Survey update success"));
   } catch (err) {
-    console.log("Failed to Update Survey : ", err.message);
+    console.log("Failed to update survey : ", err.message);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -141,7 +138,7 @@ router.delete("/:id", async (req, res) => {
     await Survey.findOneAndUpdate({ id, ...NOT_DELETED }, update).exec();
     res.status(200).send(gc("Survey delete success"));
   } catch (err) {
-    console.log("Failed to Delete Survey", err);
+    console.log("Failed to delete survey", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -150,14 +147,14 @@ router.put("/:id/end", async (req, res) => {
   try {
     const { id } = req.params;
     const originalSurvey = await Survey.findOneAndUpdate(
-      { id, ...NOT_DELETED },
+      { id, ...NOT_FINISHED },
       { status: STATUS.PUBLISHED, userId: req.user.id }
     ).exec();
     if (!originalSurvey) return res.status(404).send(gc("Cannot find survey"));
 
     res.status(200).send(gr(originalSurvey, "Survey end update success"));
   } catch (err) {
-    console.log("Failed to End Survey", err);
+    console.log("Failed to end survey", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -172,8 +169,8 @@ router.put("/:id/status", async (req, res) => {
       return res.status(400).send(gc("Illegal Argument"));
 
     const originalSurvey = await Survey.findOneAndUpdate(
-      { id, ...NOT_DELETED, ...NOT_FINISHED },
-      { status: status, userId: req.user.id }
+      { id, ...NOT_FINISHED },
+      { status, userId: req.user.id }
     ).exec();
     if (!originalSurvey)
       return res
@@ -204,7 +201,7 @@ router.put("/:id/emails", checkEmail, async (req, res) => {
     }
     res.status(200).send(gc("Email update and send success"));
   } catch (err) {
-    console.log("Failed to Update Email", err);
+    console.log("Failed to update email", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -224,20 +221,24 @@ router.get("/:id/responses", async (req, res) => {
       return;
     }
 
-    const survey = await Survey.findOne({ id, ...NOT_DELETED });
+    const survey = await Survey.findOne({ id, ...NOT_DELETED }, "-_id").lean();
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
       return;
     }
-    const responses = await Response.find({ deployId: survey.deployId });
+    const responses = await Response.find(
+      { deployId: survey.deployId },
+      "-_id"
+    ).lean();
     const result = { survey, responses };
     res.status(200).send(gr(result, "Get responses success"));
   } catch (err) {
-    console.log("Failed to Get Response", err);
+    console.log("Failed to get response", err);
     res.status(500).send(gc("Server Error"));
   }
 });
 
+// Get responses of given survey
 router.post("/:deployId/responses", async (req, res) => {
   try {
     const { deployId } = req.params;
@@ -251,7 +252,7 @@ router.post("/:deployId/responses", async (req, res) => {
     await Response.create(response);
     res.status(201).send(gc("Create response success"));
   } catch (err) {
-    console.log("Failed to Create Response", err);
+    console.log("Failed to create response", err);
     res.status(500).send(gc("Server Error"));
   }
 });
@@ -268,11 +269,7 @@ router.post("/copy", checkLogin, async (req, res) => {
     const userId = req.user.id;
 
     const originalSurvey = await Survey.findOne(
-      {
-        userId,
-        id,
-        ...NOT_DELETED,
-      },
+      { userId, id, ...NOT_DELETED },
       "-_id"
     ).lean();
 
@@ -290,7 +287,76 @@ router.post("/copy", checkLogin, async (req, res) => {
 
     res.status(200).send(gr(newSurvey, "Create copied survey success"));
   } catch (err) {
-    console.log("Failed to Create Copied Survey", err);
+    console.log("Failed to create copied survey", err);
+    res.status(500).send(gc("Server Error"));
+  }
+});
+
+// Draw result 조회 or 생성 API
+// 프론트엔드 입장에서는 기존에 생성되어있는 draw 테이블에 변화를 주는 것이라고도 할 수 있지만
+// 1. 일단 기능적으로 정보를 가져오는 것이며
+// 2. Idempotent하므로
+// GET 메소드를 활용하기로 함.
+router.get("/:id/draw", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // ToDo : hash 값을 아예 survey finished할때 생성하고, 여기서는 survey 테이블에서 hash값만 조회해오는게 어떨지 고민해볼 필요 있음
+    const survey = await Survey.findOne({ id, ...NOT_DELETED }, "-_id").lean();
+    if (!survey) {
+      res.status(404).send(gc("No such survey exists."));
+      return;
+    }
+    const { status, deployId } = survey;
+
+    // Check if survey is finished.
+    if (status !== STATUS.FINISHED) {
+      res.status(400).send(gc("Survey should be finished."));
+      return;
+    }
+
+    // Get all responses of the survey
+    const responses = await Response.find({ deployId }, "-_id")
+      .sort("createdAt")
+      .lean();
+
+    // Check if there are at least one response
+    const len = responses.length;
+    if (len === 0) {
+      res.status(400).send(gc("There are no response to select."));
+      return;
+    }
+
+    // Get hash of response data
+    const hash = crypto
+      .createHash("md5")
+      .update(JSON.stringify(responses) + deployId)
+      .digest("hex");
+
+    // Call unboxing monster draw API
+    let result = null;
+    try {
+      const response = await axios.put(`${DRAW_API}/results`, {
+        id,
+        hash,
+        len,
+      });
+      result = response.data.result;
+    } catch {
+      res.status(404).send(gr(null, "No draw info exists"));
+      return;
+    }
+
+    // Get selected responses from selection of draw result
+    const selections = result.drawResult.result;
+    const selectedResponses = selections.map((i) => responses[i]);
+
+    // Return required values
+    res
+      .status(200)
+      .send(gr({ ...result, selectedResponses }, "Get draw success"));
+  } catch (err) {
+    console.log("Failed to get draw result", err);
     res.status(500).send(gc("Server Error"));
   }
 });
