@@ -87,7 +87,7 @@ router.get("/:id", async (req, res) => {
     }
 
     // Draw api 호출
-    const response = await axios.get(`${DRAW_API}?sid=${survey.id}`);
+    const response = await axios.get(`${DRAW_API}/${survey.id}`);
     const draw = response.data.result;
     survey = { ...survey, draw };
 
@@ -120,7 +120,7 @@ router.put("/:id", async (req, res) => {
 
     // draw api 호출
     if (draw && "isEnabled" in draw) {
-      await axios.put(DRAW_API, { id, ...draw });
+      await axios.put(`${DRAW_API}/${id}`, draw);
     }
 
     res.status(200).send(gc("Survey update success"));
@@ -336,8 +336,7 @@ router.get("/:id/draw", async (req, res) => {
     // Call unboxing monster draw API
     let result = null;
     try {
-      const response = await axios.put(`${DRAW_API}/results`, {
-        id: surveyId,
+      const response = await axios.put(`${DRAW_API}/${surveyId}/results`, {
         hash,
         len,
       });

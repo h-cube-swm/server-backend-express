@@ -29,14 +29,14 @@ checkBodyResult = [
 ];
 
 // 추첨 목록 받아오기(꾸러기 원정대)
-router.get("/", async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    if (!req.query.sid) {
+    const { id } = req.params;
+
+    if (!id) {
       res.status(400).send(gc("sid field is required"));
       return;
     }
-
-    const { sid: id } = req.query;
 
     const draw =
       (await Draw.findOne({ id }, "-_id isEnabled number").lean()) || {};
@@ -47,10 +47,10 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.put("/", checkBodyPut, async (req, res) => {
+router.put("/:id", checkBodyPut, async (req, res) => {
   try {
-    const { id, ...rest } = req.body;
-    const update = { ...rest };
+    const { id } = req.params;
+    const update = req.body;
     await Draw.updateOne({ id }, update, { upsert: true });
     res.status(200).send(gc("Draw update success"));
   } catch (err) {
@@ -60,10 +60,11 @@ router.put("/", checkBodyPut, async (req, res) => {
 });
 
 // 기존 draw 테이블에 변화를 주는 것이기에 put 메소드 활용
-router.put("/results", checkBodyResult, async (req, res) => {
+router.put("/:id/results", checkBodyResult, async (req, res) => {
   try {
+    let { id } = req.params;
     // Parse body
-    let { id, hash, len } = req.body;
+    let { hash, len } = req.body;
 
     // Get existing draw configuration
     const draw = await Draw.findOne({ id }).lean();
