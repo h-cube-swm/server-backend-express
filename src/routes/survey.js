@@ -300,14 +300,18 @@ router.post("/copy", checkLogin, async (req, res) => {
 router.get("/:id/draw", async (req, res) => {
   try {
     const { id } = req.params;
+    const isResponse = req.query.mode === "response";
 
     // ToDo : hash 값을 아예 survey finished할때 생성하고, 여기서는 survey 테이블에서 hash값만 조회해오는게 어떨지 고민해볼 필요 있음
-    const survey = await Survey.findOne({ id, ...NOT_DELETED }, "-_id").lean();
+    let condition = {};
+    if (isResponse) condition = { deployId: id, ...NOT_DELETED };
+    else condition = { id, ...NOT_DELETED };
+    const survey = await Survey.findOne(condition, "-_id").lean();
     if (!survey) {
       res.status(404).send(gc("No such survey exists."));
       return;
     }
-    const { status, deployId } = survey;
+    const { status, id: surveyId, deployId } = survey;
 
     // Check if survey is finished.
     if (status !== STATUS.FINISHED) {
@@ -328,28 +332,27 @@ router.get("/:id/draw", async (req, res) => {
     }
 
     // Get hash of response data
-    const hash = crypto
-      .createHash("md5")
-      .update(JSON.stringify(responses) + deployId)
-      .digest("hex");
+    const hash = md5(JSON.stringify(responses) + surveyId);
 
     // Call unboxing monster draw API
     let result = null;
     try {
       const response = await axios.put(`${DRAW_API}/results`, {
-        id,
+        id: surveyId,
         hash,
         len,
       });
       result = response.data.result;
-    } catch {
+    } catch (e) {
       res.status(404).send(gr(null, "No draw info exists"));
       return;
     }
 
     // Get selected responses from selection of draw result
     const selections = result.drawResult.result;
-    const selectedResponses = selections.map((i) => responses[i]);
+    const selectedResponses = selections.map((i) =>
+      isResponse ? responses[i].responses.hash : responses[i]
+    );
 
     // Return required values
     res
