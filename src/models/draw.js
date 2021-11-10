@@ -7,7 +7,7 @@ const drawSchema = mongoose.Schema(
     id: String, // survey id
     isEnabled: { type: Boolean, default: false },
     number: Number,
-    drawResult: Array,
+    drawResult: Object,
   },
   { strict: false, timestamps: true }
 );

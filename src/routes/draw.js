@@ -72,15 +72,15 @@ router.put("/results", checkBodyResult, async (req, res) => {
       return;
     }
 
-    // Limit draw number
-    let n = draw.number;
-    if (n > len) n = len;
-
     // Return draw if draw result already exists
     if ("drawResult" in draw) {
       res.status(200).send(gr(draw, "Get draw result Success"));
       return;
     }
+
+    // Limit draw number
+    let n = draw.number;
+    if (n > len) n = len;
 
     // Call unboxing API
     const response = await axios.post(
@@ -95,7 +95,7 @@ router.put("/results", checkBodyResult, async (req, res) => {
     const updatedDraw = await Draw.findOneAndUpdate(
       { id },
       { drawResult },
-      { new: true, select: "-_id result" }
+      { new: true }
     ).exec();
 
     res.status(200).send(gr(updatedDraw, "Successfully created new draw."));
