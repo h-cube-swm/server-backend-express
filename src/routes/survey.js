@@ -40,6 +40,10 @@ function validateStatus(status) {
   return Object.values(STATUS).includes(status);
 }
 
+function md5(str) {
+  return crypto.createHash("md5").update(str).digest("hex");
+}
+
 router.post("/", async (req, res) => {
   try {
     const result = await Survey.create({
@@ -59,44 +63,39 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { mode } = req.query;
+    const isEditMode = mode === "edit";
 
     if (!(await checkUUID(id))) {
-      res
-        .status(400)
-        .send(
-          gc("Invalid UUID(should be xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)")
-        );
+      res.status(400).send(gc("Invalid UUID(should be UUIDv4)"));
       return;
     }
 
     let columns = "-_id";
     let condition = { ...NOT_DELETED };
-    if (mode === "edit") {
-      condition = { ...condition, id };
-    } else if (mode === "response") {
-      columns =
-        "-_id title description questions status branching themeColor deployId";
-      condition = {
-        ...condition,
-        deployId: id,
-      };
-    } else {
+    if (isEditMode) condition = { ...condition, id };
+    else if (mode === "response") condition = { ...condition, deployId: id };
+    else {
       res.status(400).send(gc("Invalid query string : " + mode));
       return;
     }
 
-    let survey = await Survey.findOne(condition, columns).lean();
     // Todo: 만약 종료된 설문이 유출이 되면 안되는 경우가 있다면 이 부분을 처리해줄 것
-
+    let survey = await Survey.findOne(condition, columns).lean();
     if (!survey) {
       res.status(404).send(gc("Cannot find survey"));
       return;
     }
 
     // Draw api 호출
-    const response = await axios.get(`${DRAW_API}?sid=${id}`);
+    const response = await axios.get(`${DRAW_API}?sid=${survey.id}`);
     const draw = response.data.result;
     survey = { ...survey, draw };
+
+    // Mode에 따라 Survey 가공
+    if (!isEditMode) {
+      let { id, ...others } = survey;
+      survey = others;
+    }
 
     res.status(200).send(gr(survey, "Successfully got survey"));
   } catch {
