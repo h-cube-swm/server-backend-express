@@ -350,7 +350,7 @@ router.get("/:id/draw", async (req, res) => {
     // Get selected responses from selection of draw result
     const selections = result.drawResult.result;
     const selectedResponses = selections.map((i) =>
-      isResponse ? responses[i].responses.hash : responses[i]
+      isResponse ? responses[i].responses.uuid : responses[i]
     );
 
     // Return required values
