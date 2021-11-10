@@ -98,7 +98,7 @@ router.get("/:id", async (req, res) => {
     }
 
     res.status(200).send(gr(survey, "Successfully got survey"));
-  } catch {
+  } catch (err) {
     console.log("Failed to get survey", err);
     res.status(500).send(gc("Server Error"));
   }
