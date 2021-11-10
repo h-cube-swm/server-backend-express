@@ -11,11 +11,6 @@ const crypto = require("crypto");
 const Survey = require("../models/survey");
 const Response = require("../models/response");
 
-// draw api 엔드포인트
-const DRAW_API = process.env.STAGE
-  ? "https://api.dev.the-form.io/draws"
-  : "https://api.the-form.io/draws";
-
 const STATUS = {
   EDITING: "editing",
   PUBLISHED: "published",
@@ -87,7 +82,9 @@ router.get("/:id", async (req, res) => {
     }
 
     // Draw api 호출
-    const response = await axios.get(`${DRAW_API}/${survey.id}`);
+    const response = await axios.get(
+      `https://${req.hostname}/draws/${survey.id}`
+    );
     const draw = response.data.result;
     survey = { ...survey, draw };
 
@@ -120,7 +117,7 @@ router.put("/:id", async (req, res) => {
 
     // draw api 호출
     if (draw && "isEnabled" in draw) {
-      await axios.put(`${DRAW_API}/${id}`, draw);
+      await axios.put(`https://${req.hostname}/draws/${id}`, draw);
     }
 
     res.status(200).send(gc("Survey update success"));
@@ -336,10 +333,13 @@ router.get("/:id/draw", async (req, res) => {
     // Call unboxing monster draw API
     let result = null;
     try {
-      const response = await axios.put(`${DRAW_API}/${surveyId}/results`, {
-        hash,
-        len,
-      });
+      const response = await axios.put(
+        `https://${req.hostname}/draws/${surveyId}/results`,
+        {
+          hash,
+          len,
+        }
+      );
       result = response.data.result;
     } catch (e) {
       res.status(404).send(gr(null, "No draw info exists"));
