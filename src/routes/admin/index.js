@@ -50,7 +50,7 @@ module.exports = (database) => {
         $sort: order || { createdAt: -1 },
       },
       {
-        $limit: limit,
+        $limit: offset + limit,
       },
       {
         $skip: offset,
