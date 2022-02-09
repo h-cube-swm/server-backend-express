@@ -47,6 +47,15 @@ module.exports = (database) => {
 
     const aggregates = [
       {
+        $sort: order || { createdAt: -1 },
+      },
+      {
+        $limit: offset + limit,
+      },
+      {
+        $skip: offset,
+      },
+      {
         $lookup: {
           from: "responses",
           localField: "deployId",
@@ -59,11 +68,7 @@ module.exports = (database) => {
     ];
     if (condition) aggregates.push({ $match: JSON.parse(condition) });
 
-    const result = await Survey.aggregate(aggregates)
-      .sort(order || { createdAt: -1 })
-      .skip(offset)
-      .limit(limit)
-      .exec();
+    const result = await Survey.aggregate(aggregates).exec();
     res.send({ result });
   });
 
